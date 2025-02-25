@@ -1,118 +1,133 @@
-import tudatpy
-from tudatpy.kernel import numerical_simulation, constants
-from tudatpy.kernel.interface import spice
-from tudatpy.kernel.numerical_simulation import environment_setup, propagation_setup
+# Load standard modules
 import numpy as np
-import matplotlib.pyplot as plt
 
-# Load spice kernels (for celestial bodies' ephemerides)
+import time
+from matplotlib import pyplot as plt
+
+# Load tudatpy modules
+from tudatpy.interface import spice
+from tudatpy import numerical_simulation
+from tudatpy.numerical_simulation import environment_setup, propagation_setup
+from tudatpy.astro import element_conversion
+from tudatpy import constants
+from tudatpy.util import result2array
+from tudatpy.astro.time_conversion import DateTime
+
+# Load spice kernels
 spice.load_standard_kernels()
 
-# Define bodies in simulation
-bodies = environment_setup.create_system_of_bodies(
-    environment_setup.get_default_body_settings(["Earth"], "Earth")
+# Set simulation start and end epochs
+simulation_start_epoch = DateTime(2000, 1, 1).epoch()
+simulation_end_epoch   = DateTime(2000, 1, 2).epoch()
+
+# Create default body settings for "Earth"
+bodies_to_create = ["Earth", "Moon"]
+
+# Create default body settings for bodies_to_create, with "Earth"/"J2000" as the global frame origin and orientation
+global_frame_origin = "Earth"
+global_frame_orientation = "J2000"
+body_settings = environment_setup.get_default_body_settings(
+    bodies_to_create, global_frame_origin, global_frame_orientation)
+
+# Add empty settings to body settings
+body_settings.add_empty_settings("Delfi-C3")
+
+# Create system of bodies (in this case only Earth)
+bodies = environment_setup.create_system_of_bodies(body_settings)
+
+# Define bodies that are propagated
+bodies_to_propagate = ["Delfi-C3"]
+
+# Define central bodies of propagation
+central_bodies = ["Earth"]
+
+# Define accelerations acting on Delfi-C3
+acceleration_settings_delfi_c3 = dict(
+    Earth=[propagation_setup.acceleration.point_mass_gravity()]
 )
 
-# Set up Earth's atmosphere model (e.g., NRLMSISE-00)
-earth = bodies.get_body("Earth")
-earth.set_atmosphere_model(
-    environment_setup.create_atmosphere_model(
-        environment_setup.atmosphere.nrlmsise00(), "Earth"
-    )
-)
+acceleration_settings = {"Delfi-C3": acceleration_settings_delfi_c3}
 
-# Create a satellite object
-satellite_name = "ReentrySatellite"
-bodies.create_empty_body(satellite_name)
-bodies.get_body(satellite_name).set_constant_mass(500)  # 500 kg
-
-# Define aerodynamic properties (drag coefficient, area)
-reference_area = 2.5  # m²
-drag_coefficient = 2.2  # Assumed constant
-aero_coefficient_settings = environment_setup.aerodynamics.constant_aerodynamic_coefficients(
-    reference_area, [drag_coefficient, 0, 0], independent_variable_settings=[]
-)
-bodies.get_body(satellite_name).set_aerodynamic_coefficient_interface(
-    environment_setup.create_aerodynamic_coefficient_interface(
-        aero_coefficient_settings, satellite_name, bodies
-    )
-)
-
-# Define acceleration models
-accelerations_on_satellite = {
-    satellite_name: [
-        propagation_setup.acceleration.point_mass_gravity("Earth"),
-        propagation_setup.acceleration.aerodynamic("Earth"),
-    ]
-}
-
-# Propagation settings
+# Create acceleration models
 acceleration_models = propagation_setup.create_acceleration_models(
-    bodies, accelerations_on_satellite, [satellite_name], ["Earth"]
+    bodies, acceleration_settings, bodies_to_propagate, central_bodies
 )
 
-# Define initial conditions (altitude ~120 km, reentry trajectory)
-initial_altitude = 120000  # meters
-initial_velocity = 7800  # m/s (approximate low-Earth orbit velocity)
-initial_state = np.array([
-    earth.shape_model.radius + initial_altitude,  # x (altitude above Earth's surface)
-    0.0,  # y
-    0.0,  # z
-    0.0,  # vx
-    initial_velocity,  # vy (tangential velocity)
-    0.0,  # vz
-])
-
-# Define termination conditions (e.g., stop when below 20 km altitude)
-termination_altitude = 20000  # meters
-termination_settings = propagation_setup.propagator.hybrid_termination(
-    [
-        propagation_setup.propagator.time_termination(1000),  # Max simulation time
-        propagation_setup.propagator.dependent_variable_termination(
-            propagation_setup.dependent_variable.altitude(satellite_name, "Earth"),
-            termination_altitude,  # Stop at 20 km
-            True
-        ),
-    ]
+# Set initial conditions for the satellite that will be
+# propagated in this simulation. The initial conditions are given in
+# Keplerian elements and later on converted to Cartesian elements
+earth_gravitational_parameter = bodies.get("Earth").gravitational_parameter
+initial_state = element_conversion.keplerian_to_cartesian_elementwise(
+    gravitational_parameter=earth_gravitational_parameter,
+    semi_major_axis=6.99276221e+06,
+    eccentricity=4.03294322e-03,
+    inclination=1.71065169e+00,
+    argument_of_periapsis=1.31226971e+00,
+    longitude_of_ascending_node=3.82958313e-01,
+    true_anomaly=3.07018490e+00,
 )
 
-# Define integrator settings (Runge-Kutta 4(5))
-integrator_settings = propagation_setup.integrator.runge_kutta_variable_step_size(
-    initial_time=0,
-    initial_step_size=1.0,
-    coefficient_set=propagation_setup.integrator.CoefficientSets.rkf_45,
-    minimum_step_size=0.1,
-    maximum_step_size=10.0,
-    relative_error_tolerance=1e-8,
-    absolute_error_tolerance=1e-8
-)
+# Create termination settings
+termination_settings = propagation_setup.propagator.time_termination(simulation_end_epoch)
 
-# Set up propagation settings
+# Create numerical integrator settings
+integrator_settings = propagation_setup.integrator.runge_kutta_fixed_step(
+    time_step = 10.0,
+    coefficient_set = propagation_setup.integrator.CoefficientSets.rk_4 )
+
+# Create propagation settings
 propagator_settings = propagation_setup.propagator.translational(
-    central_bodies=["Earth"],
-    bodies_to_integrate=[satellite_name],
-    acceleration_models=acceleration_models,
-    initial_states=initial_state,
-    termination_settings=termination_settings
+    central_bodies,
+    acceleration_models,
+    bodies_to_propagate,
+    initial_state,
+    simulation_start_epoch,
+    integrator_settings,
+    termination_settings
 )
 
-# Run the simulation
+tik = time.time()
+
+# Create simulation object and propagate the dynamics
 dynamics_simulator = numerical_simulation.create_dynamics_simulator(
-    bodies, propagator_settings, integrator_settings
+    bodies, propagator_settings
 )
 
-# Extract results
-states = dynamics_simulator.state_history
+tok = time.time()
 
-# Extract altitude and time
-time_values = np.array(list(states.keys()))
-altitudes = np.array([np.linalg.norm(state[:3]) - earth.shape_model.radius for state in states.values()])
+# Extract the resulting state history and convert it to an ndarray
+states = dynamics_simulator.propagation_results.state_history
+states_array = result2array(states)
 
-# Plot altitude over time
-plt.figure()
-plt.plot(time_values, altitudes / 1000)  # Convert to km
-plt.xlabel("Time (s)")
-plt.ylabel("Altitude (km)")
-plt.title("Satellite Reentry Altitude Over Time")
-plt.grid()
+print(
+    f"""
+Single Earth-Orbiting Satellite Example.
+The initial position vector of Delfi-C3 is [km]: \n{
+    states[simulation_start_epoch][:3] / 1E3}
+The initial velocity vector of Delfi-C3 is [km/s]: \n{
+    states[simulation_start_epoch][3:] / 1E3}
+\nAfter {simulation_end_epoch} seconds the position vector of Delfi-C3 is [km]: \n{
+    states[simulation_end_epoch][:3] / 1E3}
+And the velocity vector of Delfi-C3 is [km/s]: \n{
+    states[simulation_end_epoch][3:] / 1E3}
+    """
+)
+print("Time elapsed: {0} seconds".format(tok-tik))
+print("Evaluates to: {0} seconds simulated per second of compute".format(simulation_end_epoch/(tok-tik)))
+
+# Define a 3D figure using pyplot
+fig = plt.figure(figsize=(6,6), dpi=125)
+ax = fig.add_subplot(111, projection='3d')
+ax.set_title(f'Delfi-C3 trajectory around Earth')
+
+# Plot the positional state history
+ax.plot(states_array[:, 1], states_array[:, 2], states_array[:, 3], label=bodies_to_propagate[0], linestyle='-.')
+ax.scatter(0.0, 0.0, 0.0, label="Earth", marker='o', color='blue')
+
+# Add the legend and labels, then show the plot
+ax.legend()
+ax.set_xlabel('x [m]')
+ax.set_ylabel('y [m]')
+ax.set_zlabel('z [m]')
 plt.show()
+
