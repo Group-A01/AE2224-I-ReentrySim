@@ -14,25 +14,25 @@ T_earth = 86164.0905
 r_earth = 6378136
 
 l_cube = 0.1 #Satellite side length [m]
-mass_cube = 1.5 #Satellite mass [kg]
+mass_cube = 2.2 #Satellite mass [kg]
 
 t = 0
 t_res = 1 #Numerical time resolution [s]
-t_speed = 100000 #Simulation speed [min/s/t_res]
+t_speed = 1 #Simulation speed [min/s/t_res]
 
 #Initial position and velocity vectors
-position = np.array([200000+r_earth, 0, 0]) #[m]
+position = np.array([100000+r_earth, 0, 0]) #[m]
 velocity = np.array([0, math.sqrt(mu_earth/mag(position)), 0]) #[m/s]
 
 highAccuracy = False
 
 def drag(velocity, h): #Atmospheric drag
-    #temperature = 2000-(2000-186.946)*pow(math.e, (90000-h)/50000)
     if(h <= 150):
         density = 1.225*pow(0.863615,h)
     else:
         density = 0.14081*pow(10,-8)*pow(0.985172,h)
-
+    
+    #temperature = 2000-(2000-186.946)*pow(math.e, (90000-h*1000)/50000)
     #M = mag(velocity)/math.sqrt(1.4*287*temperature)
     #cd = 2.1*pow(math.e, -1.16*(M+0.35))-6.5*pow(math.e, -2.23*(M+0.35))+1.67
 
@@ -46,12 +46,11 @@ while(mag(position) > r_earth): #Numerical iteration
             highAccuracy = True
             break
             
-        g_force = setMag(-position, mu_earth/pow(mag(position), 2))
+        g_acceleration = setMag(-position, mu_earth/pow(mag(position), 2))
         drag_force = drag(velocity, (mag(position)-r_earth)/1000)
         
-        resultant_force = g_force + drag_force/mass_cube
-        
-        velocity = velocity + resultant_force*t_res
+        acceleration = g_acceleration + drag_force/mass_cube
+        velocity = velocity + acceleration*t_res
         position = position + velocity*t_res
         
         t += t_res
