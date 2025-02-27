@@ -287,13 +287,16 @@ plt.plot(time_hours, acceleration_norm_aero_earth, label='Aerodynamic Earth')
 # Cannonball Radiation Pressure Acceleration Sun
 acceleration_norm_rp_sun = dep_vars_array[:,18]
 
+#store all extracted variables in an np array
 data = np.vstack([time_hours, altitude, semi_major_axis, eccentricity, inclination, argument_of_periapsis, raan, true_anomaly, 
                    acceleration_norm_pm_sun, acceleration_norm_pm_moon, acceleration_norm_pm_mars, acceleration_norm_pm_venus, acceleration_norm_sh_earth, acceleration_norm_aero_earth, acceleration_norm_rp_sun])
 # print(data.shape)
 data = np.transpose(data)
+headr = "Time (Hours), Altitude, Semi Major Axis, Eccentricity, Inclination, Argument Of Periapsis, RAAN, True Anomaly, Acceleration Norm PM Sun, Acceleration Norm PM Moon, Acceleration Norm PM Mars, Acceleration Norm PM Venus, Acceleration Norm SH Earth, Acceleration Norm Aero Earth, Acceleration Norm RP Sun"
 
+#store the data array in a csv with header
 print("Writing to file: {0}.csv...".format(satname))
-np.savetxt(satname+".csv", data, delimiter = ',')
+np.savetxt(satname+".csv", data, header = headr, delimiter = ',')
 print("Done!")
 plt.plot(time_hours, acceleration_norm_rp_sun, label='Radiation Pressure Sun')
 
