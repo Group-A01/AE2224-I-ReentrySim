@@ -15,6 +15,8 @@ from tudatpy.util import result2array
 from tudatpy.astro.time_conversion import DateTime
 import time
 
+import urllib.request #for fetching a txt file with live TLE for n3Xt
+
 # Load spice kernels
 spice.load_standard_kernels()
 
@@ -104,9 +106,21 @@ simulation_end_epoch   = DateTime(2025, 2, 15).epoch()
 
 # Retrieve the initial state of Delfi-n3xt using Two-Line-Elements (TLEs)
 #https://en.wikipedia.org/wiki/Two-line_element_set << for convention
+targeturl = "https://celestrak.org/NORAD/elements/gp.php?GROUP=cubesat&FORMAT=tle"
+tle_data = ""
+with urllib.request.urlopen(targeturl) as response:
+    data = response.read().decode('utf-8')
+    lines = data.splitlines()
+    # print(lines)
+    for i in range(len(lines)):
+        slice = lines[i][0:8]
+        if slice =="1 39428U":
+            tle_data = (lines[i], lines[i+1])
+            break
+    print(tle_data)
+
 delfi_tle = environment.Tle(
-    "1 39428U 13066N   25057.83303158  .00021340  00000-0  22812-2 0  9999",
-    "2 39428  97.8375 336.7919 0088117 339.8602  19.9144 14.85919981603801",
+    tle_data[0], tle_data[1],
 ) 
 #2nd line: Line number, Sat Catalog Number, Inclination, Right Ascention of ascending node, eccentricity, argument of perigee, mean anomaly, mean motion, revolution number at epoch, checksum
 delfi_ephemeris = environment.TleEphemeris("Earth", "J2000", delfi_tle, False)
