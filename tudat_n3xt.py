@@ -101,8 +101,8 @@ acceleration_models = propagation_setup.create_acceleration_models(
     central_bodies)
 
 # Set simulation start and end epochs
-simulation_start_epoch = DateTime(2025, 2, 13).epoch()
-simulation_end_epoch   = DateTime(2025, 2, 15).epoch()
+simulation_start_epoch = DateTime(2025, 3, 6).epoch()
+simulation_end_epoch   = DateTime(2025, 3, 10).epoch()
 
 # Retrieve the initial state of Delfi-n3xt using Two-Line-Elements (TLEs)
 #https://en.wikipedia.org/wiki/Two-line_element_set << for convention
@@ -220,9 +220,11 @@ hours = 3
 subset = int(len(time_hours) / 24 * hours)
 latitude = np.rad2deg(latitude[0: subset])
 longitude = np.rad2deg(longitude[0: subset])
+colors = np.linspace(0,100,len(latitude))
 plt.figure(figsize=(9, 5))
 plt.title("3 hour ground track of Delfi-n3xt")
-plt.scatter(longitude, latitude, s=1)
+plt.scatter(longitude, latitude, s=1, c=colors, cmap='viridis')
+plt.colorbar()
 plt.xlabel('Longitude [deg]')
 plt.ylabel('Latitude [deg]')
 plt.xlim([min(longitude), max(longitude)])
