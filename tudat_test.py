@@ -21,6 +21,8 @@ spice.load_standard_kernels()
 # Define string names for bodies to be created from default.
 bodies_to_create = ["Sun", "Earth", "Moon", "Mars", "Venus"]
 
+satname = "Delfi-n3xt"
+
 # Use "Earth"/"J2000" as global frame origin and orientation.
 global_frame_origin = "Earth"
 global_frame_orientation = "J2000"
@@ -32,7 +34,7 @@ body_settings = environment_setup.get_default_body_settings(
     global_frame_orientation)
 
 # Create empty body settings for the satellite
-body_settings.add_empty_settings("Delfi-C3")
+body_settings.add_empty_settings(satname)
 
 # Create aerodynamic coefficient interface settings
 reference_area_drag = (4*0.3*0.1+2*0.1*0.1)/4  # Average projection area of a 3U CubeSat
@@ -42,7 +44,7 @@ aero_coefficient_settings = environment_setup.aerodynamic_coefficients.constant(
 )
 
 # Add the aerodynamic interface to the body settings
-body_settings.get("Delfi-C3").aerodynamic_coefficient_settings = aero_coefficient_settings
+body_settings.get(satname).aerodynamic_coefficient_settings = aero_coefficient_settings
 
 # Create radiation pressure settings
 reference_area_radiation = (4*0.3*0.1+2*0.1*0.1)/4  # Average projection area of a 3U CubeSat
@@ -53,18 +55,18 @@ vehicle_target_settings = environment_setup.radiation_pressure.cannonball_radiat
     reference_area_radiation, radiation_pressure_coefficient, occulting_bodies_dict )
 
 # Add the radiation pressure interface to the body settings
-body_settings.get("Delfi-C3").radiation_pressure_target_settings = vehicle_target_settings
+body_settings.get(satname).radiation_pressure_target_settings = vehicle_target_settings
 
 bodies = environment_setup.create_system_of_bodies(body_settings)
-bodies.get("Delfi-C3").mass = 2.2 #kg
+bodies.get(satname).mass = 2.2 #kg
 
 # Define bodies that are propagated
-bodies_to_propagate = ["Delfi-C3"]
+bodies_to_propagate = [satname]
 
 # Define central bodies of propagation
 central_bodies = ["Earth"]
 
-# Define accelerations acting on Delfi-C3 by Sun and Earth.
+# Define accelerations acting on Delfi-n3xt by Sun and Earth.
 accelerations_settings_delfi_c3 = dict(
     Sun=[
         propagation_setup.acceleration.radiation_pressure(),
@@ -86,7 +88,8 @@ accelerations_settings_delfi_c3 = dict(
 )
 
 # Create global accelerations settings dictionary.
-acceleration_settings = {"Delfi-C3": accelerations_settings_delfi_c3}
+
+acceleration_settings = {satname: accelerations_settings_delfi_c3}
 
 # Create acceleration models.
 acceleration_models = propagation_setup.create_acceleration_models(
@@ -97,9 +100,9 @@ acceleration_models = propagation_setup.create_acceleration_models(
 
 # Set simulation start and end epochs
 simulation_start_epoch = DateTime(2025, 2, 13).epoch()
-simulation_end_epoch   = DateTime(2025, 4, 13).epoch()
+simulation_end_epoch   = DateTime(2025, 2, 15).epoch()
 
-# Retrieve the initial state of Delfi-C3 using Two-Line-Elements (TLEs)
+# Retrieve the initial state of Delfi-n3xt using Two-Line-Elements (TLEs)
 #https://en.wikipedia.org/wiki/Two-line_element_set << for convention
 delfi_tle = environment.Tle(
     "1 39428U 13066N   25057.83303158  .00021340  00000-0  22812-2 0  9999",
@@ -111,38 +114,38 @@ initial_state = delfi_ephemeris.cartesian_state( simulation_start_epoch )
 
 # Define list of dependent variables to save
 dependent_variables_to_save = [
-    propagation_setup.dependent_variable.total_acceleration("Delfi-C3"),
-    propagation_setup.dependent_variable.keplerian_state("Delfi-C3", "Earth"),
-    propagation_setup.dependent_variable.latitude("Delfi-C3", "Earth"),
-    propagation_setup.dependent_variable.longitude("Delfi-C3", "Earth"),
+    propagation_setup.dependent_variable.total_acceleration(satname),
+    propagation_setup.dependent_variable.keplerian_state(satname, "Earth"),
+    propagation_setup.dependent_variable.latitude(satname, "Earth"),
+    propagation_setup.dependent_variable.longitude(satname, "Earth"),
     propagation_setup.dependent_variable.single_acceleration_norm(
-        propagation_setup.acceleration.point_mass_gravity_type, "Delfi-C3", "Sun"
+        propagation_setup.acceleration.point_mass_gravity_type, satname, "Sun"
     ),
     propagation_setup.dependent_variable.single_acceleration_norm(
-        propagation_setup.acceleration.point_mass_gravity_type, "Delfi-C3", "Moon"
+        propagation_setup.acceleration.point_mass_gravity_type, satname, "Moon"
     ),
     propagation_setup.dependent_variable.single_acceleration_norm(
-        propagation_setup.acceleration.point_mass_gravity_type, "Delfi-C3", "Mars"
+        propagation_setup.acceleration.point_mass_gravity_type, satname, "Mars"
     ),
     propagation_setup.dependent_variable.single_acceleration_norm(
-        propagation_setup.acceleration.point_mass_gravity_type, "Delfi-C3", "Venus"
+        propagation_setup.acceleration.point_mass_gravity_type, satname, "Venus"
     ),
     propagation_setup.dependent_variable.single_acceleration_norm(
-        propagation_setup.acceleration.spherical_harmonic_gravity_type, "Delfi-C3", "Earth"
+        propagation_setup.acceleration.spherical_harmonic_gravity_type, satname, "Earth"
     ),
     propagation_setup.dependent_variable.single_acceleration_norm(
-        propagation_setup.acceleration.aerodynamic_type, "Delfi-C3", "Earth"
+        propagation_setup.acceleration.aerodynamic_type, satname, "Earth"
     ),
     propagation_setup.dependent_variable.single_acceleration_norm(
-        propagation_setup.acceleration.radiation_pressure_type, "Delfi-C3", "Sun"
+        propagation_setup.acceleration.radiation_pressure_type, satname, "Sun"
     ),
-    propagation_setup.dependent_variable.altitude("Delfi-C3", "Earth")
+    propagation_setup.dependent_variable.altitude(satname, "Earth")
 ]
 # Create termination settings
 termination_condition = propagation_setup.propagator.time_termination(simulation_end_epoch)
 
 # Create numerical integrator settings
-fixed_step_size = 10.0
+fixed_step_size = 120.0
 integrator_settings = propagation_setup.integrator.runge_kutta_fixed_step(
     fixed_step_size, coefficient_set=propagation_setup.integrator.CoefficientSets.rk_4
 )
@@ -179,7 +182,7 @@ time_hours = (dep_vars_array[:,0] - dep_vars_array[0,0])/3600
 total_acceleration_norm = np.linalg.norm(dep_vars_array[:,1:4], axis=1)
 altitude = dep_vars_array[:,19]/1000
 plt.figure(figsize=(9, 5))
-plt.title("Altitude of Delfi-C3 over time")
+plt.title("Altitude of Delfi-n3xt over time")
 plt.plot(time_hours, altitude)
 plt.xlabel("Time [hr]")
 plt.ylabel("Altitude [km]")
@@ -188,7 +191,7 @@ plt.grid()
 plt.tight_layout()
 
 plt.figure(figsize=(9, 5))
-plt.title("Total acceleration norm on Delfi-C3 over the course of propagation.")
+plt.title("Total acceleration norm on Delfi-n3xt over the course of propagation.")
 plt.plot(time_hours, total_acceleration_norm)
 plt.xlabel('Time [hr]')
 plt.ylabel('Total Acceleration [m/s$^2$]')
@@ -204,7 +207,7 @@ subset = int(len(time_hours) / 24 * hours)
 latitude = np.rad2deg(latitude[0: subset])
 longitude = np.rad2deg(longitude[0: subset])
 plt.figure(figsize=(9, 5))
-plt.title("3 hour ground track of Delfi-C3")
+plt.title("3 hour ground track of Delfi-n3xt")
 plt.scatter(longitude, latitude, s=1)
 plt.xlabel('Longitude [deg]')
 plt.ylabel('Latitude [deg]')
@@ -283,6 +286,18 @@ plt.plot(time_hours, acceleration_norm_aero_earth, label='Aerodynamic Earth')
 
 # Cannonball Radiation Pressure Acceleration Sun
 acceleration_norm_rp_sun = dep_vars_array[:,18]
+
+#store all extracted variables in an np array
+data = np.vstack([time_hours, altitude, semi_major_axis, eccentricity, inclination, argument_of_periapsis, raan, true_anomaly, 
+                   acceleration_norm_pm_sun, acceleration_norm_pm_moon, acceleration_norm_pm_mars, acceleration_norm_pm_venus, acceleration_norm_sh_earth, acceleration_norm_aero_earth, acceleration_norm_rp_sun])
+# print(data.shape)
+data = np.transpose(data)
+headr = "Time (Hours), Altitude, Semi Major Axis, Eccentricity, Inclination, Argument Of Periapsis, RAAN, True Anomaly, Acceleration Norm PM Sun, Acceleration Norm PM Moon, Acceleration Norm PM Mars, Acceleration Norm PM Venus, Acceleration Norm SH Earth, Acceleration Norm Aero Earth, Acceleration Norm RP Sun"
+
+#store the data array in a csv with header
+print("Writing to file: {0}.csv...".format(satname))
+np.savetxt(satname+".csv", data, header = headr, delimiter = ',')
+print("Done!")
 plt.plot(time_hours, acceleration_norm_rp_sun, label='Radiation Pressure Sun')
 
 plt.xlim([min(time_hours), max(time_hours)])
@@ -290,7 +305,7 @@ plt.xlabel('Time [hr]')
 plt.ylabel('Acceleration Norm [m/s$^2$]')
 
 plt.legend(bbox_to_anchor=(1.005, 1))
-plt.suptitle("Accelerations norms on Delfi-C3, distinguished by type and origin, over the course of propagation.")
+plt.suptitle("Accelerations norms on Delfi-n3xt, distinguished by type and origin, over the course of propagation.")
 plt.yscale('log')
 plt.grid()
 plt.tight_layout()
