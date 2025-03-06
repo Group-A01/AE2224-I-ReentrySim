@@ -76,7 +76,8 @@ class Simulation:
                     total_acceleration += self.satellite.gravitational_acceleration(body)
                 
                 drag_force = self.satellite.atmospheric_drag(self.satellite.velocity-self.bodies['Earth'].velocity, altitude/1000)
-                total_acceleration += drag_force/self.satellite.mass
+                SRP_force = 2.25e-6*l_sat**2/mass_sat*self.satellite.position/np.linalg.norm(self.satellite.position)
+                total_acceleration += (drag_force+SRP_force)/self.satellite.mass
                 
                 self.satellite.update_position_velocity(total_acceleration, self.dt)
                 
