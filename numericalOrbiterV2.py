@@ -15,15 +15,15 @@ mu_sun = 1.32712440018e20
 dt = 1
 t_speed = 10000
 
+posMag = []
+time = []
+
 class Body:
     def __init__(self, name, mu, position, velocity):
         self.name = name
         self.mu = mu
         self.position = np.array(position, dtype=float)
         self.velocity = np.array(velocity, dtype=float)
-        
-        self.x = []
-        self.y = []
 
     def gravitational_acceleration(self, other):
         r = other.position - self.position
@@ -34,8 +34,8 @@ class Body:
         self.velocity += acceleration*dt
         self.position += self.velocity*dt
 
-        self.x.append(self.position[0])
-        self.y.append(self.position[1])
+        #self.x.append(self.position[0])
+        #self.y.append(self.position[1])
 
 class Satellite(Body):
     def __init__(self, name, mass, position, velocity, drag_area, drag_coefficient):
@@ -51,6 +51,8 @@ class Satellite(Body):
             density = 0.14081e-8 * (0.985172 ** altitude)
             
         return -0.5 * density * self.drag_coefficient * self.drag_area * np.linalg.norm(velocity_rel) * velocity_rel
+
+    #def solar_radiation_pressure():
 
 class Simulation:
     def __init__(self, bodies, satellite, dt, t_speed):
@@ -76,8 +78,9 @@ class Simulation:
                     total_acceleration += self.satellite.gravitational_acceleration(body)
                 
                 drag_force = self.satellite.atmospheric_drag(self.satellite.velocity-self.bodies['Earth'].velocity, altitude/1000)
-                total_acceleration += drag_force/self.satellite.mass
+                SRP_force = 0.5*4.5e-6*3/2*l_sat**2*self.satellite.position/np.linalg.norm(self.satellite.position)
                 
+                total_acceleration += (drag_force+SRP_force)/self.satellite.mass
                 self.satellite.update_position_velocity(total_acceleration, self.dt)
                 
                 for body in self.bodies.values():
@@ -86,6 +89,9 @@ class Simulation:
                         body.update_position_velocity(acceleration, self.dt)
                 
                 self.t += self.dt
+
+                posMag.append(np.linalg.norm(satellite.position))
+                time.append(self.t)
                 
             print(self.t, altitude/1000, np.linalg.norm(self.satellite.velocity-self.bodies['Earth'].velocity))
 
@@ -100,14 +106,17 @@ sim.run()
 
 orbit_x = []
 orbit_y = []
-circle = plt.Circle((0, 0), r_earth, color='blue')
+#circle = plt.Circle((0, 0), r_earth, color='blue')
 
-for i in range(len(earth.x)):
-    orbit_x.append(satellite.x[i]-earth.x[i])
-    orbit_y.append(satellite.y[i]-earth.y[i])
+#for i in range(len(earth.x)):
+ #   orbit_x.append(satellite.x[i]-earth.x[i])
+  #  orbit_y.append(satellite.y[i]-earth.y[i])
              
-plt.axes().set_aspect('equal')
-plt.gca().set_facecolor((0,0,0))
-plt.plot(orbit_x, orbit_y, color='red')
-plt.gca().add_patch(circle)
+#plt.axes().set_aspect('equal')
+#plt.gca().set_facecolor((0,0,0))
+#plt.plot(orbit_x, orbit_y, color='red')
+#plt.gca().add_patch(circle)
+#plt.show()
+
+plt.plot(time, posMag)
 plt.show()
