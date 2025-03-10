@@ -22,6 +22,8 @@ import pymsis #wrapper for the nrlmsis fortran code
 
 import urllib.request #for fetching a txt file with live TLE for n3Xt
 
+from alive_progress import alive_bar
+
 # Load spice kernels
 spice.load_standard_kernels()
 
@@ -178,7 +180,7 @@ dependent_variables_to_save = [
 altitude_variable = propagation_setup.dependent_variable.altitude(satname, "Earth")
 termination_condition = propagation_setup.propagator.dependent_variable_termination(
     dependent_variable_settings=altitude_variable,
-    limit_value= 80.0e3,  #in meters
+    limit_value= 550.0e3,  #in meters
     use_as_lower_limit=True,  # Terminate when altitude drops below this value
     terminate_exactly_on_final_condition=False
 )
@@ -202,14 +204,12 @@ propagator_settings = propagation_setup.propagator.translational(
 )
 
 print("OKKK off we go")
-tik = time.time()
-# Create simulation object and propagate the dynamics
-dynamics_simulator = numerical_simulation.create_dynamics_simulator(
-    bodies, propagator_settings
-)
-tok = time.time()
-
-print("Elapsed time: {0} seconds".format(tok - tik))
+with alive_bar(title="Numerical integration:") as bar:
+    # Create simulation object and propagate the dynamics
+    dynamics_simulator = numerical_simulation.create_dynamics_simulator(
+        bodies, propagator_settings
+    )
+    bar()
 
 # Extract the resulting state and dependent variable history and convert it to an ndarray
 states = dynamics_simulator.propagation_results.state_history
