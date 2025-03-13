@@ -24,21 +24,29 @@ average_flux = flux_data['fluxobsflux'].mean()
 # Compute the scaled flux
 flux_data['scaled_flux'] = (flux_data['fluxobsflux'] / average_flux) * 1360
 
-# Load SW-Last5Years data
+# Load SW-Last5Years data (assuming you already have this loaded)
 sw_file_path = "SW-Last5Years.txt"
 sw_data = pd.read_csv(sw_file_path, sep='\s+', comment='#', skiprows=18, header=None, engine='python')
 
-# Define column names based on known format
-sw_columns = ['year', 'month', 'day', 'other', 'other2', 'Kp1', 'Kp2', 'Kp3', 'Kp4', 'Kp5', 'Kp6', 'Kp7', 'Kp8', 'other3', 'Ap1', 'Ap2', 'Ap3', 'Ap4', 'Ap5', 'Ap6', 'Ap7', 'Ap8', 'other4', 'other5', 'other6', 'F10.7']
-sw_data = sw_data.iloc[:, :len(sw_columns)]  # Trim to expected columns
-sw_data.columns = sw_columns
+# Trim excess columns if necessary (based on the known format)
+sw_data = sw_data.iloc[:, :34]  # Keep the first 30 columns
 
-# Remove potential footer rows
-sw_data = sw_data[pd.to_numeric(sw_data['year'], errors='coerce').notna()]
+# Remove potential footer rows by checking if the 'year' column (index 0) is numeric
+sw_data = sw_data[pd.to_numeric(sw_data.iloc[:, 0], errors='coerce').notna()]
 
-# Convert date columns to datetime
-sw_data['date'] = pd.to_datetime(sw_data[['year', 'month', 'day']])
-sw_data['F10.7'] = pd.to_numeric(sw_data['F10.7'], errors='coerce')
+# Clean the 'day' column (index 2) by converting to integers and ensuring proper formatting
+sw_data.iloc[:, 2] = sw_data.iloc[:, 2].astype(str).str.split('.').str[0]  # Remove any decimals
+sw_data.iloc[:, 2] = sw_data.iloc[:, 2].astype(int)  # Explicitly cast the day column to integers
+
+# Ensure proper formatting with two digits (e.g., "02" instead of "2")
+sw_data.iloc[:, 2] = sw_data.iloc[:, 2].astype(str).str.zfill(2)  # Now ensure two digits
+
+# Convert the date columns (year, month, day) to datetime format
+sw_data['date'] = pd.to_datetime(
+    sw_data.iloc[:, 0].astype(str) + '-' +  # year column (index 0)
+    sw_data.iloc[:, 1].astype(str).str.zfill(2) + '-' +  # month column (index 1)
+    sw_data.iloc[:, 2]  # day column (index 2), now properly formatted
+)
 
 # Set fixed date for today and last predicted date
 today = datetime(2025, 3, 13)
@@ -47,14 +55,13 @@ last_predicted_date = datetime(2041, 10, 1)
 # Filter data from today until last predicted date
 sw_data = sw_data[(sw_data['date'] >= today) & (sw_data['date'] <= last_predicted_date)]
 
-# Replace future missing values with the last known prediction (69.8)
-sw_data['F10.7'].fillna(69.8, inplace=True)
+# Convert column at index 30 (index 29) to numeric and fill NaN values with 69.8
+sw_data.iloc[:, 30] = pd.to_numeric(sw_data.iloc[:, 30], errors='coerce')
+sw_data.iloc[:, 30].fillna(69.8, inplace=True)
 
-# Compute the average of obs from today onwards
-average_obs = sw_data['F10.7'].mean()
+# Compute the scaled observations using a predefined average_flux
 
-# Compute the scaled obs
-sw_data['scaled_obs'] = (sw_data['F10.7'] / average_obs) * 1360
+sw_data['scaled_obs'] = (sw_data.iloc[:, 30] / average_flux) * 1360
 
 # Combine data for plotting
 all_dates = pd.concat([flux_data['fluxdate'], sw_data['date']])
