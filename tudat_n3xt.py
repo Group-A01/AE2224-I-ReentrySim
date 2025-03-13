@@ -13,9 +13,16 @@ from tudatpy.numerical_simulation import environment_setup, propagation_setup
 from tudatpy.astro import element_conversion
 from tudatpy import constants
 from tudatpy.util import result2array
+
 from tudatpy.astro.time_conversion import DateTime
+from datetime import datetime
 import time
-import urllib.request  # for fetching a txt file with live TLE for n3Xt
+
+import pymsis #wrapper for the nrlmsis fortran code
+
+import urllib.request #for fetching a txt file with live TLE for n3Xt
+
+from alive_progress import alive_bar
 
 # Load spice kernels
 spice.load_standard_kernels()
@@ -34,6 +41,26 @@ body_settings = environment_setup.get_default_body_settings(
     bodies_to_create,
     global_frame_origin,
     global_frame_orientation)
+
+
+def density_f(h, lon, lat, time): #long and lat in deg, h in km, time in datetime64, versions: 0, 2.0, 2.1
+    timedate = np.datetime64("2000-01-01T00:00") + np.timedelta64(int(time), 's')
+    # print(timedate)
+    data = pymsis.calculate(timedate, lon, lat, h, geomagnetic_activity=-1, version=2.1)
+    return data[0,pymsis.Variable.MASS_DENSITY]
+
+# def const_temp(h, lon, lat, time):
+#     timedate = np.datetime64("2000-01-01T00:00") + np.timedelta64(time, 's')
+#     # print(timedate)
+#     data = pymsis.calculate(timedate, lon, lat, h, geomagnetic_activity=-1, version=2.1)
+#     return data[0,pymsis.Variable.TEMPERATURE]
+
+body_settings.get("Earth").atmosphere_settings = environment_setup.atmosphere.custom_four_dimensional_constant_temperature(
+    density_f,
+    991.96893,
+    300.0, 
+    1.4) 
+ #const. temp, sp. gas const, ratio of sp. heats
 
 # Create empty body settings for the satellite
 body_settings.add_empty_settings(satname)
@@ -113,7 +140,7 @@ with urllib.request.urlopen(targeturl) as response:
         if slice == "1 39428U":
             tle_data = (lines[i], lines[i+1])
             break
-    print(tle_data)
+    print("Data as of {0}: {1}".format(datetime.today(), tle_data))
 
 delfi_tle = environment.Tle(tle_data[0], tle_data[1])
 delfi_ephemeris = environment.TleEphemeris("Earth", "J2000", delfi_tle, False)
@@ -177,14 +204,12 @@ propagator_settings = propagation_setup.propagator.translational(
 )
 
 print("OKKK off we go")
-tik = time.time()
-# Create simulation object and propagate the dynamics
-dynamics_simulator = numerical_simulation.create_dynamics_simulator(
-    bodies, propagator_settings
-)
-tok = time.time()
-
-print("Elapsed time: {0} seconds".format(tok - tik))
+with alive_bar(title="Numerical integration:") as bar:
+    # Create simulation object and propagate the dynamics
+    dynamics_simulator = numerical_simulation.create_dynamics_simulator(
+        bodies, propagator_settings
+    )
+    bar()
 
 # Extract the resulting state and dependent variable history and convert it to an ndarray
 states = dynamics_simulator.propagation_results.state_history
