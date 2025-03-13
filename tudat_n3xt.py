@@ -126,6 +126,12 @@ acceleration_models = propagation_setup.create_acceleration_models(
     bodies_to_propagate,
     central_bodies)
 
+# User choice for termination condition
+print("Simulation Termination Options:")
+print("1. Simulate until altitude reaches 120 km")
+print("2. Specify a custom end date (YYYY-MM-DD)")
+choice = input("Enter your choice (1 or 2): ")
+
 # Set simulation start epoch
 simulation_start_epoch = DateTime(2024, 3, 8).epoch()
 
@@ -178,12 +184,36 @@ dependent_variables_to_save = [
 
 # Create termination settings based on altitude (terminate when altitude <= 120 km)
 altitude_variable = propagation_setup.dependent_variable.altitude(satname, "Earth")
-termination_condition = propagation_setup.propagator.dependent_variable_termination(
+altitude_termination = propagation_setup.propagator.dependent_variable_termination(
     dependent_variable_settings=altitude_variable,
-    limit_value= 550.0e3,  #in meters
+    limit_value= 120.0e3,  #in meters
     use_as_lower_limit=True,  # Terminate when altitude drops below this value
     terminate_exactly_on_final_condition=False
 )
+
+if choice == "1":
+    termination_condition = altitude_termination
+    print("Simulating until altitude reaches 120 km...")
+elif choice == "2":
+    while True:
+        try:
+            end_date_str = input("Enter end date (YYYY-MM-DD): ")
+            end_date = datetime.strptime(end_date_str, "%Y-%m-%d")
+            simulation_end_epoch = DateTime(end_date.year, end_date.month, end_date.day).epoch()
+            if simulation_end_epoch <= simulation_start_epoch:
+                print("End date must be after start date (2024-03-08). Try again.")
+                continue
+            time_termination = propagation_setup.propagator.time_termination(simulation_end_epoch)
+            termination_condition = propagation_setup.propagator.hybrid_termination(
+                [altitude_termination, time_termination], fulfill_single_condition=True)
+            print(f"Simulating until {end_date_str} or 120 km altitude, whichever comes first...")
+            break
+        except ValueError:
+            print("Invalid date format. Please use YYYY-MM-DD (e.g., 2024-12-31).")
+else:
+    print("Invalid choice. Terminating script.")
+    exit()
+
 
 # Create numerical integrator settings
 fixed_step_size = 60.0
@@ -238,6 +268,8 @@ plt.ylabel('Total Acceleration [m/s$^2$]')
 plt.xlim([min(time_hours), max(time_hours)])
 plt.grid()
 plt.tight_layout()
+
+plt.show()
 
 # Plot ground track for a period of 3 hours
 latitude = dep_vars_array[:, 10]
@@ -331,15 +363,18 @@ acceleration_norm_rp_sun = dep_vars_array[:, 18]
 
 # Store all extracted variables in an np array
 data = np.vstack([time_hours, altitude, semi_major_axis, eccentricity, inclination, argument_of_periapsis, raan, true_anomaly,
-                  acceleration_norm_pm_sun, acceleration_norm_pm_moon, acceleration_norm_pm_mars, acceleration_norm_pm_venus, acceleration_norm_sh_earth, acceleration_norm_aero_earth, acceleration_norm_rp_sun])
+                  acceleration_norm_pm_sun, acceleration_norm_pm_moon, acceleration_norm_pm_mars, acceleration_norm_pm_venus, 
+                  acceleration_norm_sh_earth, acceleration_norm_aero_earth, acceleration_norm_rp_sun])
 data = np.transpose(data)
-headr = "Time (Hours), Altitude, Semi Major Axis, Eccentricity, Inclination, Argument Of Periapsis, RAAN, True Anomaly, Acceleration Norm PM Sun, Acceleration Norm PM Moon, Acceleration Norm PM Mars, Acceleration Norm PM Venus, Acceleration Norm SH Earth, Acceleration Norm Aero Earth, Acceleration Norm RP Sun"
+headr = "Time (Hours), Altitude, Semi Major Axis, Eccentricity, Inclination, Argument Of Periapsis, RAAN, True Anomaly, " \
+        "Acceleration Norm PM Sun, Acceleration Norm PM Moon, Acceleration Norm PM Mars, Acceleration Norm PM Venus, " \
+        "Acceleration Norm SH Earth, Acceleration Norm Aero Earth, Acceleration Norm RP Sun"
 
 # Store the data array in a csv with header
 print("Writing to file: {0}.csv...".format(satname))
 np.savetxt(satname + ".csv", data, header=headr, delimiter=',')
 print("Done!")
-print(time_hours[-1])
+print(f"Final simulation time: {time_hours[-1]:.2f} hours")
 
 plt.plot(time_hours, acceleration_norm_rp_sun, label='Radiation Pressure Sun')
 
@@ -351,37 +386,46 @@ plt.suptitle("Accelerations norms on Delfi-n3xt, distinguished by type and origi
 plt.yscale('log')
 plt.grid()
 plt.tight_layout()
-	
-# 3D Dynamic Visualization
+
+plt.show()
+
+# 3D Dynamic Visualization with Full Orbit
 # Extract Cartesian coordinates from the state history
 time = states_array[:, 0]  # Time in seconds
 x = states_array[:, 1] / 1e3  # Convert to km
 y = states_array[:, 2] / 1e3
 z = states_array[:, 3] / 1e3
 
-# Debugging: Check the number of frames
-print(f"Number of frames to animate: {len(time)}")
-if len(time) == 0:
-    raise ValueError("No frames available for animation. Check the state history.")
+# Subsample for animation (e.g., 1000 frames for a lightweight video)
+step = max(1, len(time) // 1000)  # Aim for ~1000 frames
+frame_indices = np.arange(0, len(time), step)
+x_sub = x[frame_indices]
+y_sub = y[frame_indices]
+z_sub = z[frame_indices]
+time_sub = time[frame_indices]
+
+print(f"Original frames: {len(time)}, Subsampled frames for animation: {len(frame_indices)}")
 
 # Create a 3D figure
 fig = plt.figure(figsize=(10, 10))
 ax = fig.add_subplot(111, projection='3d')
 
 # Plot Earth's surface (approximated as a sphere)
-u = np.linspace(0, 2 * np.pi, 100)
-v = np.linspace(0, np.pi, 100)
+u = np.linspace(0, 2 * np.pi, 50)  # Reduced resolution for faster rendering
+v = np.linspace(0, np.pi, 50)
 earth_radius = 6371  # Earth's radius in km
 x_earth = earth_radius * np.outer(np.cos(u), np.sin(v))
 y_earth = earth_radius * np.outer(np.sin(u), np.sin(v))
 z_earth = earth_radius * np.outer(np.ones(np.size(u)), np.cos(v))
 ax.plot_surface(x_earth, y_earth, z_earth, color='blue', alpha=0.3)
 
-# Initialize the satellite's position and orbit trace
-sat_point, = ax.plot([], [], [], 'ro', label='Delfi-n3xt', markersize=5)  # Red dot for satellite
-orbit_line, = ax.plot([], [], [], 'g-', linewidth=1)  # Green line for orbit trace
+# Plot the full orbit trace statically (using all points for detail)
+ax.plot(x, y, z, 'g-', linewidth=1, label='Full Orbit Trace')
 
-# Set plot limits (adjust based on your orbit)
+# Initialize the satellite's position (animated part)
+sat_point, = ax.plot([x_sub[0]], [y_sub[0]], [z_sub[0]], 'ro', label='Delfi-n3xt', markersize=5)
+
+# Set plot limits
 ax.set_xlim([-10000, 10000])
 ax.set_ylim([-10000, 10000])
 ax.set_zlim([-10000, 10000])
@@ -393,23 +437,18 @@ ax.legend()
 
 # Animation initialization function
 def init():
-    sat_point.set_data_3d([], [], [])
-    orbit_line.set_data_3d([], [], [])
-    return sat_point, orbit_line
+    sat_point.set_data_3d([x_sub[0]], [y_sub[0]], [z_sub[0]])
+    return sat_point,
 
-# Animation update function
+# Animation update function (only moves the satellite)
 def update(frame):
-    sat_point.set_data_3d([x[frame]], [y[frame]], [z[frame]])
-    orbit_line.set_data_3d(x[:frame+1], y[:frame+1], z[:frame+1])
-    return sat_point, orbit_line
+    sat_point.set_data_3d([x_sub[frame]], [y_sub[frame]], [z_sub[frame]])
+    return sat_point,
 
-# Create animation (disable blit for saving compatibility)
-ani = FuncAnimation(fig, update, frames=len(time), init_func=init, blit=False, interval=50)
+# Create animation
+ani = FuncAnimation(fig, update, frames=len(frame_indices), init_func=init, blit=False, interval=50)
 
-# Save the animation as an MP4 file
+# Save the animation as a lightweight MP4 file
 print("Saving animation to 'delfi_n3xt_orbit.mp4'...")
-ani.save('delfi_n3xt_orbit.mp4', writer='ffmpeg', fps=30, dpi=100)
+ani.save('delfi_n3xt_orbit.mp4', writer='ffmpeg', fps=30, dpi=80, bitrate=2000)  # Lower DPI and set bitrate
 print("Animation saved!")
-
-# Display all plots (optional, comment out if only saving is needed)
-plt.show()
