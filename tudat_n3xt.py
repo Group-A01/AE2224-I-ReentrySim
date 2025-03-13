@@ -126,6 +126,12 @@ acceleration_models = propagation_setup.create_acceleration_models(
     bodies_to_propagate,
     central_bodies)
 
+# User choice for termination condition
+print("Simulation Termination Options:")
+print("1. Simulate until altitude reaches 120 km")
+print("2. Specify a custom end date (YYYY-MM-DD)")
+choice = input("Enter your choice (1 or 2): ")
+
 # Set simulation start epoch
 simulation_start_epoch = DateTime(2024, 3, 8).epoch()
 
@@ -176,14 +182,38 @@ dependent_variables_to_save = [
     propagation_setup.dependent_variable.altitude(satname, "Earth")
 ]
 
-# Create termination settings based on altitude (terminate when altitude <= 80 km)
+# Create termination settings based on altitude (terminate when altitude <= 120 km)
 altitude_variable = propagation_setup.dependent_variable.altitude(satname, "Earth")
-termination_condition = propagation_setup.propagator.dependent_variable_termination(
+altitude_termination = propagation_setup.propagator.dependent_variable_termination(
     dependent_variable_settings=altitude_variable,
-    limit_value=80.0e3,  # in meters
+    limit_value= 120.0e3,  #in meters
     use_as_lower_limit=True,  # Terminate when altitude drops below this value
     terminate_exactly_on_final_condition=False
 )
+
+if choice == "1":
+    termination_condition = altitude_termination
+    print("Simulating until altitude reaches 120 km...")
+elif choice == "2":
+    while True:
+        try:
+            end_date_str = input("Enter end date (YYYY-MM-DD): ")
+            end_date = datetime.strptime(end_date_str, "%Y-%m-%d")
+            simulation_end_epoch = DateTime(end_date.year, end_date.month, end_date.day).epoch()
+            if simulation_end_epoch <= simulation_start_epoch:
+                print("End date must be after start date (2024-03-08). Try again.")
+                continue
+            time_termination = propagation_setup.propagator.time_termination(simulation_end_epoch)
+            termination_condition = propagation_setup.propagator.hybrid_termination(
+                [altitude_termination, time_termination], fulfill_single_condition=True)
+            print(f"Simulating until {end_date_str} or 120 km altitude, whichever comes first...")
+            break
+        except ValueError:
+            print("Invalid date format. Please use YYYY-MM-DD (e.g., 2024-12-31).")
+else:
+    print("Invalid choice. Terminating script.")
+    exit()
+
 
 # Create numerical integrator settings
 fixed_step_size = 60.0
@@ -238,6 +268,8 @@ plt.ylabel('Total Acceleration [m/s$^2$]')
 plt.xlim([min(time_hours), max(time_hours)])
 plt.grid()
 plt.tight_layout()
+
+plt.show()
 
 # Plot ground track for a period of 3 hours
 latitude = dep_vars_array[:, 10]
@@ -355,6 +387,8 @@ plt.yscale('log')
 plt.grid()
 plt.tight_layout()
 
+plt.show()
+
 # 3D Dynamic Visualization with Full Orbit
 # Extract Cartesian coordinates from the state history
 time = states_array[:, 0]  # Time in seconds
@@ -418,6 +452,3 @@ ani = FuncAnimation(fig, update, frames=len(frame_indices), init_func=init, blit
 print("Saving animation to 'delfi_n3xt_orbit.mp4'...")
 ani.save('delfi_n3xt_orbit.mp4', writer='ffmpeg', fps=30, dpi=80, bitrate=2000)  # Lower DPI and set bitrate
 print("Animation saved!")
-
-# Display all plots (optional)
-plt.show(block=True)
