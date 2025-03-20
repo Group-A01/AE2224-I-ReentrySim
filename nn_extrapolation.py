@@ -6,6 +6,7 @@
 import numpy as np
 import torch
 from matplotlib import pyplot as plt
+import pandas as pd
 
 from scipy import signal
 
@@ -54,24 +55,28 @@ def train_regressor_nn(n_features, n_hidden_neurons, learning_rate, n_epochs, X,
 
 switch = True
 if switch:
-    data = np.genfromtxt("ap_initial_data.txt", delimiter=" ")
-    X = data[:,0]
-    Y = data[:,1]
-    X = X[:200]
-    Y = Y[:200]
+    # data = np.genfromtxt("snfuture.csv", delimiter=",")
+    data = pd.read_csv("snfuture.csv")
+    print(data)
+    X = data.loc[:,["days", "dB", "SN"]]
+    Y = data.loc[:,["Ap]]
+    print(X, X.shape)
+    # print(Y, Y.shape)
+    X = X[:200,:]
+    # Y = Y[:200,:]
 else:
     X = np.linspace(0,5,200)
     Y = np.sin(X)
 
 # Total number of samples:
-n_features = 1
+n_features = X.shape[1]
 
 #savgol filter
 # X = signal.savgol_filter(X, 70, 1, axis=0) 
 
 #convert to torch tensors
-X = torch.from_numpy(X).float().view(-1, 1)
-Y = torch.from_numpy(Y).float().view(-1, 1)
+X = torch.from_numpy(X).float()
+Y = torch.from_numpy(Y).float()
 
 # Make a neural network model for the MLP with sigmoid activation functions in the hidden layer, and linear on the output
 n_hidden_neurons = 64
