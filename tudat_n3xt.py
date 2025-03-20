@@ -30,7 +30,7 @@ spice.load_standard_kernels()
 # Define string names for bodies to be created from default.
 bodies_to_create = ["Sun", "Earth", "Moon", "Mars", "Venus"]
 
-satname = "Delfi-n3xt"
+satname = "Delfi-PQ"
 
 # Use "Earth"/"J2000" as global frame origin and orientation.
 global_frame_origin = "Earth"
@@ -95,7 +95,7 @@ bodies_to_propagate = [satname]
 # Define central bodies of propagation
 central_bodies = ["Earth"]
 
-# Define accelerations acting on Delfi-n3xt by Sun and Earth.
+# Define accelerations acting on satellite by Sun and Earth.
 accelerations_settings_delfi_c3 = dict(
     Sun=[
         propagation_setup.acceleration.radiation_pressure(),
@@ -133,20 +133,26 @@ print("2. Specify a custom end date (YYYY-MM-DD)")
 choice = input("Enter your choice (1 or 2): ")
 
 # Set simulation start epoch
-simulation_start_epoch = DateTime(2024, 3, 8).epoch()
+simulation_start_epoch = DateTime(2022, 9, 6).epoch()
 
-# Retrieve the initial state of Delfi-n3xt using Two-Line-Elements (TLEs)
+# Retrieve the initial state of satellite using Two-Line-Elements (TLEs) (n3xt = 39428U)
 targeturl = "https://celestrak.org/NORAD/elements/gp.php?GROUP=cubesat&FORMAT=tle"
 tle_data = ""
-with urllib.request.urlopen(targeturl) as response:
-    data = response.read().decode('utf-8')
-    lines = data.splitlines()
-    for i in range(len(lines)):
-        slice = lines[i][0:8]
-        if slice == "1 39428U":
-            tle_data = (lines[i], lines[i+1])
-            break
-    print("Data as of {0}: {1}".format(datetime.today(), tle_data))
+inp = input("Find current n3xt data or use prebaked? (1,2): ")
+if inp == "1":
+    with urllib.request.urlopen(targeturl) as response:
+        data = response.read().decode('utf-8')
+        lines = data.splitlines()
+        for i in range(len(lines)):
+            slice = lines[i][0:8]
+            if slice == "1 39428U":
+                tle_data = (lines[i], lines[i+1])
+                break
+elif inp == "2":
+    tle_data = ("1 51074U 22029BR  22249.50000000  .00001103  00000-0  33518-4 0  9995",
+                "2 51074  97.5000   0.7036 0003481  80.0000   0.3331 15.17013610017788")
+
+print("Data as of {0}: {1}".format(datetime.today(), tle_data))
 
 delfi_tle = environment.Tle(tle_data[0], tle_data[1])
 delfi_ephemeris = environment.TleEphemeris("Earth", "J2000", delfi_tle, False)
@@ -252,7 +258,7 @@ time_hours = (dep_vars_array[:, 0] - dep_vars_array[0, 0]) / 3600
 total_acceleration_norm = np.linalg.norm(dep_vars_array[:, 1:4], axis=1)
 altitude = dep_vars_array[:, 19] / 1000
 plt.figure(figsize=(9, 5))
-plt.title("Altitude of Delfi-n3xt over time")
+plt.title("Altitude of {0} over time".format(satname))
 plt.plot(time_hours, altitude)
 plt.xlabel("Time [hr]")
 plt.ylabel("Altitude [km]")
@@ -261,7 +267,7 @@ plt.grid()
 plt.tight_layout()
 
 plt.figure(figsize=(9, 5))
-plt.title("Total acceleration norm on Delfi-n3xt over the course of propagation.")
+plt.title("Total acceleration norm on {0} over the course of propagation.".format(satname))
 plt.plot(time_hours, total_acceleration_norm)
 plt.xlabel('Time [hr]')
 plt.ylabel('Total Acceleration [m/s$^2$]')
@@ -280,7 +286,7 @@ latitude = np.rad2deg(latitude[0:subset])
 longitude = np.rad2deg(longitude[0:subset])
 colors = np.linspace(0, 100, len(latitude))
 plt.figure(figsize=(9, 5))
-plt.title("3 hour ground track of Delfi-n3xt")
+plt.title("3 hour ground track of {0}".format(satname))
 plt.scatter(longitude, latitude, s=1, c=colors, cmap='viridis')
 plt.colorbar()
 plt.xlabel('Longitude [deg]')
@@ -382,7 +388,6 @@ plt.xlim([min(time_hours), max(time_hours)])
 plt.xlabel('Time [hr]')
 plt.ylabel('Acceleration Norm [m/s$^2$]')
 plt.legend(bbox_to_anchor=(1.005, 1))
-plt.suptitle("Accelerations norms on Delfi-n3xt, distinguished by type and origin, over the course of propagation.")
 plt.yscale('log')
 plt.grid()
 plt.tight_layout()
@@ -423,7 +428,7 @@ ax.plot_surface(x_earth, y_earth, z_earth, color='blue', alpha=0.3)
 ax.plot(x, y, z, 'g-', linewidth=1, label='Full Orbit Trace')
 
 # Initialize the satellite's position (animated part)
-sat_point, = ax.plot([x_sub[0]], [y_sub[0]], [z_sub[0]], 'ro', label='Delfi-n3xt', markersize=5)
+sat_point, = ax.plot([x_sub[0]], [y_sub[0]], [z_sub[0]], 'ro', label=satname, markersize=5)
 
 # Set plot limits
 ax.set_xlim([-10000, 10000])
@@ -432,7 +437,7 @@ ax.set_zlim([-10000, 10000])
 ax.set_xlabel('X [km]')
 ax.set_ylabel('Y [km]')
 ax.set_zlabel('Z [km]')
-ax.set_title('Dynamic 3D Orbit of Delfi-n3xt')
+ax.set_title('Dynamic 3D Orbit of {0}'.format(satname))
 ax.legend()
 
 # Animation initialization function
