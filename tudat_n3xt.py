@@ -275,8 +275,6 @@ plt.xlim([min(time_hours), max(time_hours)])
 plt.grid()
 plt.tight_layout()
 
-plt.show()
-
 # Plot ground track for a period of 3 hours
 latitude = dep_vars_array[:, 10]
 longitude = dep_vars_array[:, 11]
@@ -440,20 +438,31 @@ ax.set_zlabel('Z [km]')
 ax.set_title('Dynamic 3D Orbit of {0}'.format(satname))
 ax.legend()
 
-# Animation initialization function
-def init():
-    sat_point.set_data_3d([x_sub[0]], [y_sub[0]], [z_sub[0]])
-    return sat_point,
+plt.show()
+while True:
+    try:
+        inp = input("Save animation? (y/n): ")
+        if(inp=="y"):
+            # Animation initialization function
+            def init():
+                sat_point.set_data_3d([x_sub[0]], [y_sub[0]], [z_sub[0]])
+                return sat_point,
 
-# Animation update function (only moves the satellite)
-def update(frame):
-    sat_point.set_data_3d([x_sub[frame]], [y_sub[frame]], [z_sub[frame]])
-    return sat_point,
+            # Animation update function (only moves the satellite)
+            def update(frame):
+                sat_point.set_data_3d([x_sub[frame]], [y_sub[frame]], [z_sub[frame]])
+                return sat_point,
 
-# Create animation
-ani = FuncAnimation(fig, update, frames=len(frame_indices), init_func=init, blit=False, interval=50)
+            # Create animation
+            ani = FuncAnimation(fig, update, frames=len(frame_indices), init_func=init, blit=False, interval=50)
 
-# Save the animation as a lightweight MP4 file
-print("Saving animation to 'delfi_n3xt_orbit.mp4'...")
-ani.save('delfi_n3xt_orbit.mp4', writer='ffmpeg', fps=30, dpi=80, bitrate=2000)  # Lower DPI and set bitrate
-print("Animation saved!")
+            # Save the animation as a lightweight MP4 file
+            print("Saving animation to 'delfi_n3xt_orbit.mp4'...")
+            ani.save('delfi_n3xt_orbit.mp4', writer='ffmpeg', fps=30, dpi=80, bitrate=2000)  # Lower DPI and set bitrate
+            print("Animation saved!")
+        elif(inp=='n'):
+            break
+        else:
+            raise Exception
+    except:
+        print("Inlvaid input")
