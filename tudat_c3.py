@@ -29,7 +29,7 @@ spice.load_standard_kernels()
 # Define string names for bodies to be created from default.
 bodies_to_create = ["Sun", "Earth", "Moon", "Mars", "Venus"]
 
-satname = "Delfi-PQ"
+satname = "Delfi-C3"
 
 # Use "Earth"/"J2000" as global frame origin and orientation.
 global_frame_origin = "Earth"
@@ -86,7 +86,7 @@ vehicle_target_settings = environment_setup.radiation_pressure.cannonball_radiat
 body_settings.get(satname).radiation_pressure_target_settings = vehicle_target_settings
 
 bodies = environment_setup.create_system_of_bodies(body_settings)
-bodies.get(satname).mass = 2.8  # kg
+bodies.get(satname).mass = 2.2  # kg
 
 # Define bodies that are propagated
 bodies_to_propagate = [satname]
@@ -132,7 +132,7 @@ print("2. Specify a custom end date (YYYY-MM-DD)")
 choice = input("Enter your choice (1 or 2): ")
 
 # Set simulation start epoch
-simulation_start_epoch = DateTime(2022, 9, 6).epoch()
+simulation_start_epoch = DateTime(2022, 10, 20).epoch()
 
 # Retrieve the initial state of satellite using Two-Line-Elements (TLEs) (n3xt = 39428U)
 targeturl = "https://celestrak.org/NORAD/elements/gp.php?GROUP=cubesat&FORMAT=tle"
@@ -148,8 +148,8 @@ if inp == "1":
                 tle_data = (lines[i], lines[i+1])
                 break
 elif inp == "2":
-    tle_data = ("1 51074U 22029BR  22249.50000000  .00001103  00000-0  33518-4 0  9995",
-                "2 51074  97.5000   0.7036 0003481  80.0000   0.3331 15.17013610017788")
+    tle_data = ("1 32789U 08021G   22293.83333333  .00000078  00000-0  00000-0 0  9992",
+                "2 32789  97.3323 315.0810 0007800 242.4144 123.5208 16.339720  191544")
 
 print("Data as of {0}: {1}".format(datetime.today(), tle_data))
 
