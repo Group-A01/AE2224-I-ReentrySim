@@ -1,6 +1,5 @@
 # Load standard modules
 import numpy as np
-import matplotlib
 from matplotlib import pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
 from matplotlib.animation import FuncAnimation
