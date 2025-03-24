@@ -3,7 +3,6 @@ import numpy as np
 from matplotlib import pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
 from matplotlib.animation import FuncAnimation
-from datetime import datetime, timedelta  # CHANGED: Added timedelta for date calculations
 
 # Load tudatpy modules
 from tudatpy.interface import spice
@@ -13,10 +12,15 @@ from tudatpy.numerical_simulation import environment_setup, propagation_setup
 from tudatpy.astro import element_conversion
 from tudatpy import constants
 from tudatpy.util import result2array
+
 from tudatpy.astro.time_conversion import DateTime
+from datetime import datetime
 import time
-import pymsis
-import urllib.request
+
+import pymsis #wrapper for the nrlmsis fortran code
+
+import urllib.request #for fetching a txt file with live TLE for n3Xt
+
 from alive_progress import alive_bar
 
 # Load spice kernels
@@ -27,7 +31,6 @@ bodies_to_create = ["Sun", "Earth", "Moon", "Mars", "Venus"]
 
 satname = "Delfi-PQ"
 
-print('Martin Barov')
 # Use "Earth"/"J2000" as global frame origin and orientation.
 global_frame_origin = "Earth"
 global_frame_orientation = "J2000"
@@ -45,11 +48,11 @@ def density_f(h, lon, lat, time): #long and lat in deg, h in km, time in datetim
     data = pymsis.calculate(timedate, lon, lat, h, geomagnetic_activity=-1, version=2.1)
     return data[0,pymsis.Variable.MASS_DENSITY]
 
-def const_temp(h, lon, lat, time):
-    timedate = np.datetime64("2000-01-01T00:00") + np.timedelta64(time, 's')
-    print(timedate)
-    data = pymsis.calculate(timedate, lon, lat, h, geomagnetic_activity=-1, version=2.1)
-    return data[0,pymsis.Variable.TEMPERATURE]
+# def const_temp(h, lon, lat, time):
+#     timedate = np.datetime64("2000-01-01T00:00") + np.timedelta64(time, 's')
+#     # print(timedate)
+#     data = pymsis.calculate(timedate, lon, lat, h, geomagnetic_activity=-1, version=2.1)
+#     return data[0,pymsis.Variable.TEMPERATURE]
 
 body_settings.get("Earth").atmosphere_settings = environment_setup.atmosphere.custom_four_dimensional_constant_temperature(
     density_f,
@@ -129,7 +132,7 @@ print("2. Specify a custom end date (YYYY-MM-DD)")
 choice = input("Enter your choice (1 or 2): ")
 
 # Set simulation start epoch
-simulation_start_epoch = DateTime(2008, 5, 5).epoch()
+simulation_start_epoch = DateTime(2022, 9, 6).epoch()
 
 # Retrieve the initial state of satellite using Two-Line-Elements (TLEs) (n3xt = 39428U)
 targeturl = "https://celestrak.org/NORAD/elements/gp.php?GROUP=cubesat&FORMAT=tle"
@@ -145,10 +148,8 @@ if inp == "1":
                 tle_data = (lines[i], lines[i+1])
                 break
 elif inp == "2":
-    tle_data = (
-    "1 32789U 08021G   08126.86298982  .00000240  00000-0  21562-4 0   123",
-    "2 32789  98.0528 210.5829 0011778 342.5890 017.4188 14.70853390   107"
-    )   
+    tle_data = ("1 51074U 22029BR  22249.50000000  .00001103  00000-0  33518-4 0  9995",
+                "2 51074  97.5000   0.7036 0003481  80.0000   0.3331 15.17013610017788")
 
 print("Data as of {0}: {1}".format(datetime.today(), tle_data))
 
@@ -251,29 +252,19 @@ states_array = result2array(states)
 dep_vars = dynamics_simulator.propagation_results.dependent_variable_history
 dep_vars_array = result2array(dep_vars)
 
-# Convert time to years and calculate final date
-start_date = datetime(2008, 5, 5)  # Simulation start date
-time_seconds = dep_vars_array[:, 0] - dep_vars_array[0, 0]  # Time in seconds from start
-time_years = time_seconds / (365.25 * 24 * 3600) + 2008  # Convert to years, starting at 2008
-altitude = dep_vars_array[:, 19] / 1000  # Altitude in km
-
-# Calculate final simulation date
-final_time_seconds = time_seconds[-1]
-final_date = start_date + timedelta(seconds=final_time_seconds)
-
-# Plot altitude vs. time in years
+# Plot total acceleration as function of time
+time_hours = (dep_vars_array[:, 0] - dep_vars_array[0, 0]) / 3600
+total_acceleration_norm = np.linalg.norm(dep_vars_array[:, 1:4], axis=1)
+altitude = dep_vars_array[:, 19] / 1000
 plt.figure(figsize=(9, 5))
 plt.title("Altitude of {0} over time".format(satname))
-plt.plot(time_years, altitude)
-plt.xlabel("Time [years]")
+plt.plot(time_hours, altitude)
+plt.xlabel("Time [hr]")
 plt.ylabel("Altitude [km]")
-plt.xlim([min(time_years), max(time_years)])
+plt.xlim([min(time_hours), max(time_hours)])
 plt.grid()
 plt.tight_layout()
 
-# Plot total acceleration (keeping hours for consistency with other plots)
-time_hours = time_seconds / 3600  # Still in hours for other plots
-total_acceleration_norm = np.linalg.norm(dep_vars_array[:, 1:4], axis=1)
 plt.figure(figsize=(9, 5))
 plt.title("Total acceleration norm on {0} over the course of propagation.".format(satname))
 plt.plot(time_hours, total_acceleration_norm)
