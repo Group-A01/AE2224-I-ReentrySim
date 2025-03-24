@@ -28,6 +28,7 @@ bodies_to_create = ["Sun", "Earth", "Moon", "Mars", "Venus"]
 
 satname = "Delfi-PQ"
 
+print('Martin Barov')
 # Use "Earth"/"J2000" as global frame origin and orientation.
 global_frame_origin = "Earth"
 global_frame_orientation = "J2000"
