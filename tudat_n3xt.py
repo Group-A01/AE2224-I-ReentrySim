@@ -27,7 +27,6 @@ bodies_to_create = ["Sun", "Earth", "Moon", "Mars", "Venus"]
 
 satname = "Delfi-n3xt"
 
-print('Martin Barov')
 # Use "Earth"/"J2000" as global frame origin and orientation.
 global_frame_origin = "Earth"
 global_frame_orientation = "J2000"
@@ -43,7 +42,7 @@ const_temp=999
 def density_f(h, lon, lat, time): #long and lat in deg, h in km, time in datetime64, versions: 0, 2.0, 2.1
     timedate = np.datetime64("2000-01-01T00:00") + np.timedelta64(int(time), 's')
     # print(timedate)
-    data = pymsis.calculate(timedate, lon, lat, h/1000, geomagnetic_activity=-1, version=0)
+    data = pymsis.calculate(timedate, lon, lat, h/1000, geomagnetic_activity=-1, version=2.1)
     global const_temp
     const_temp = data[0, pymsis.Variable.MASS_DENSITY]
     return data[0,pymsis.Variable.MASS_DENSITY]
@@ -133,7 +132,7 @@ print("2. Specify a custom end date (YYYY-MM-DD)")
 choice = input("Enter your choice (1 or 2): ")
 
 # Set simulation start epoch
-year, month, day = 2013, 11, 21
+year, month, day = 2018, 3, 16
 start_date = DateTime(year, month, day)  # Simulation start date
 simulation_start_epoch = start_date.epoch()
 
@@ -150,14 +149,15 @@ if inp == "1":
             if slice == "1 39428U":
                 tle_data = (lines[i], lines[i+1])
                 break
+    print("Data as of {0}: {1}".format(datetime.today(), tle_data))
 elif inp == "2":
     tle_data = (
     "1 39428U 13066N   18075.32153000  .00000240  00000-0  21562-4 0  1232",
     "2 39428  97.6502   4.9842 0120600 207.1048 170.7736 14.67040000 00019"
     )   
     #from https://in-the-sky.org/spacecraft_elements.php?id=39428&startday=24&startmonth=2&startyear=2016&endday=24&endmonth=3&endyear=2018
+    print("Data as of {2}-{1}-{0}: {3}".format(year, month, day, tle_data))
 
-print("Data as of {0}: {1}".format(datetime.today(), tle_data))
 
 delfi_tle = environment.Tle(tle_data[0], tle_data[1])
 delfi_ephemeris = environment.TleEphemeris("Earth", "J2000", delfi_tle, False)
