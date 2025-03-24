@@ -6,6 +6,7 @@
 import numpy as np
 import torch
 from matplotlib import pyplot as plt
+import pandas as pd
 
 from scipy import signal
 
@@ -19,8 +20,8 @@ def train_regressor_nn(n_features, n_hidden_neurons, learning_rate, n_epochs, X,
     
     model = torch.nn.Sequential(
         torch.nn.Linear(n_features, n_hidden_neurons),
-        # torch.nn.Sigmoid(),
-        torch.nn.Linear(n_hidden_neurons, n_hidden_neurons),
+        torch.nn.Sigmoid(),
+        # torch.nn.Linear(n_hidden_neurons, n_hidden_neurons),
         # torch.nn.Sigmoid(),
         torch.nn.Linear(n_hidden_neurons, 1)
     )
@@ -54,64 +55,80 @@ def train_regressor_nn(n_features, n_hidden_neurons, learning_rate, n_epochs, X,
 
 switch = True
 if switch:
-    data = np.genfromtxt("ap_initial_data.txt", delimiter=" ")
-    X = data[:,0]
-    Y = data[:,1]
-    X = X[:200]
-    Y = Y[:200]
+    # data = np.genfromtxt("snfuture.csv", delimiter=",")
+    data = pd.read_csv("snfuture.csv")
+    print(data)
+    X = data.loc[:,["days", "dB", "SN"]]
+    Y = data.loc[:,["Ap"]]
+    slce = 0.5
+    sample = 1000
+    
+    X_train = X[:int(sample*slce)] #train data
+    Y_train = Y[:int(sample*slce)]
+
+    X_test = X[int(sample*slce):sample]
+    Y_test = Y[int(sample*slce):sample]
+    
+    print(X_train, X_train.shape)
+    print(X_test, X_test.shape)
+    print(Y_train, Y_train.shape)
+    print(Y_test, Y_test.shape)
 else:
     X = np.linspace(0,5,200)
     Y = np.sin(X)
 
 # Total number of samples:
-n_features = 1
+n_features = X_train.shape[1]
 
 #savgol filter
 # X = signal.savgol_filter(X, 70, 1, axis=0) 
+data.plot(x="days", title="Data")
+# plt.show()
+# plt.plot(X, Y, label="Actual")
+# plt.savefig('data.png')
 
 #convert to torch tensors
-X = torch.from_numpy(X).float().view(-1, 1)
-Y = torch.from_numpy(Y).float().view(-1, 1)
+X_train = torch.tensor(X_train.values).float()
+Y_train = torch.tensor(Y_train.values).float()
+X_test = torch.tensor(X_test.values).float()
+Y_test = torch.tensor(Y_test.values).float()
+# X = torch.from_numpy(X).float()
+# Y = torch.from_numpy(Y).float()
 
 # Make a neural network model for the MLP with sigmoid activation functions in the hidden layer, and linear on the output
 n_hidden_neurons = 64
 # rates = np.linspace(0.04, 0.04200424116196333, 3)
 # rates = [0.04200424116196333]
-rates = np.linspace(1e-5, 1e-1, 5)
+rates = np.linspace(0.015, 0.025, 1)
 n_epochs = 2000
-
+plt.figure()
 errors = []
 for i in rates:
     learning_rate = i
-    plt.subplot(3,1,1)
     plt.suptitle("Current learning rate: {0}".format(learning_rate))
-    plt.plot(X, Y, label="Actual")
-    plt.savefig('data.png')
-
     print("Current learning rate: {0}".format(learning_rate))
-    model = train_regressor_nn(n_features, n_hidden_neurons, learning_rate, n_epochs, X, Y)
+    model = train_regressor_nn(n_features, n_hidden_neurons, learning_rate, n_epochs, X_train, Y_train)
 
     # plot the output of the network vs. the ground truth:
-    y_pred = model(X)
+    y_pred = model(X_test)
+    y_used = model(X_train)
+    y_used = y_used.detach().numpy()
     y_pred = y_pred.detach().numpy()
-    y_plot = Y.detach().numpy()
+    y_plot = Y_test.detach().numpy()
+    y_train = Y_train.detach().numpy()
     # y_plot = y_plot.reshape(N, 1)
 
     print('Root Mean Squared Error: ', np.sqrt(np.mean((y_pred - y_plot)**2)))
     errors.append(np.sqrt(np.mean((y_pred - y_plot)**2)))
-    plt.subplot(3,1,2)
-    plt.plot(y_pred, label="LR = {0}".format(learning_rate), linewidth=3)
+    plt.subplot(2,1,1)
+    plt.plot(X_train[:,0], y_used, linewidth=3)
+    plt.plot(X_test[:,0], y_pred, label="LR = {0}".format(learning_rate), linewidth=3)
     plt.legend()
-    
-    # inp = input("show?")
-    # if(inp=="1"):
-    #     plt.show()
-    # plt.clf()
-    # plt.savefig('output_vs_ground_truth.png')
 
-plt.plot(y_plot,'ro', label='Ground Truth')
+plt.plot(X_train[:,0], y_train,'r-', label='Train Set')
+plt.plot(X_test[:,0], y_plot,'b-', label='Test Set')
 
-plt.subplot(3,1,3)
+plt.subplot(2,1,2)
 plt.plot(rates, errors)
 plt.xscale("log")
 
