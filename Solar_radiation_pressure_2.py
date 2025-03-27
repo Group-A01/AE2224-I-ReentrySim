@@ -153,10 +153,15 @@ plt.legend()
 plt.show()
 '''
 # The 'trend' column contains all the values of F10.7
-
+print (forecast['ds'].head(5))
 f10_7_arr = forecast['trend'].to_numpy()
 
 average_10_7 = np.average(f10_7_arr)
 
 Solar_flux = f10_7_arr/average_10_7*1367
 
+forecast = forecast['ds'].to_numpy()
+
+Solar_flux_dates = pd.DataFrame({'Date':forecast, 'Solar Flux':Solar_flux})
+
+print(Solar_flux_dates.tail(10))
