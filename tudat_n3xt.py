@@ -132,7 +132,8 @@ print("2. Specify a custom end date (YYYY-MM-DD)")
 choice = input("Enter your choice (1 or 2): ")
 
 # Set simulation start epoch
-year, month, day = 2018, 3, 16
+year, month, day = 2022, 1, 1
+# year, month, day = 2018, 3, 16
 start_date = DateTime(year, month, day)  # Simulation start date
 simulation_start_epoch = start_date.epoch()
 
@@ -152,9 +153,13 @@ if inp == "1":
     print("Data as of {0}: {1}".format(datetime.today(), tle_data))
 elif inp == "2":
     tle_data = (
-    "1 39428U 13066N   18075.32153000  .00000240  00000-0  21562-4 0  1232",
-    "2 39428  97.6502   4.9842 0120600 207.1048 170.7736 14.67040000 00019"
-    )   
+        "1 39428U 13066N   22001.78750000  .00000000  00000-0  00000-0 0  9994",
+        "2 39428  97.8016  20.1745 0120500  93.5035 349.1758 14.70287000 00018"
+    )
+    # tle_data = (
+    # "1 39428U 13066N   18075.32153000  .00000240  00000-0  21562-4 0  1232",
+    # "2 39428  97.6502   4.9842 0120600 207.1048 170.7736 14.67040000 00019"
+    # )   
     #from https://in-the-sky.org/spacecraft_elements.php?id=39428&startday=24&startmonth=2&startyear=2016&endday=24&endmonth=3&endyear=2018
     print("Data as of {2}-{1}-{0}: {3}".format(year, month, day, tle_data))
 
@@ -190,7 +195,9 @@ dependent_variables_to_save = [
     propagation_setup.dependent_variable.single_acceleration_norm(
         propagation_setup.acceleration.radiation_pressure_type, satname, "Sun"
     ),
-    propagation_setup.dependent_variable.altitude(satname, "Earth")
+    propagation_setup.dependent_variable.altitude(satname, "Earth"),
+    propagation_setup.dependent_variable.periapsis_altitude(satname, "Earth"),
+    propagation_setup.dependent_variable.apoapsis_altitude(satname, "Earth")
 ]
 
 # Create termination settings based on altitude (terminate when altitude <= 120 km)
@@ -266,6 +273,8 @@ dates = np.array([timedelta(seconds=time) + start_date for time in time_seconds]
 print("deltas {0}".format(dates))
 time_years = time_seconds / (365.25 * 24 * 3600) + year  # Convert to years, starting at 2008
 altitude = dep_vars_array[:, 19] / 1000  # Altitude in km
+periapsis = dep_vars_array[:,20] /1000 #Periapsis in km
+apoapsis = dep_vars_array[:,21] /1000 #Periapsis in km
 
 # Calculate final simulation date
 final_time_seconds = time_seconds[-1]
@@ -274,10 +283,12 @@ final_date = start_date + timedelta(seconds=final_time_seconds)
 # Plot altitude vs. time in years
 plt.figure(figsize=(9, 5))
 plt.title("Altitude of {0} over time".format(satname))
-plt.plot(dates, altitude)
+plt.plot(dates, periapsis, label="Periapsis")
+plt.plot(dates,apoapsis, label="Apoapsis")
 plt.xlabel("Time [years]")
 plt.ylabel("Altitude [km]")
 plt.xlim([min(dates), max(dates)])
+plt.legend()
 plt.grid()
 plt.tight_layout()
 
