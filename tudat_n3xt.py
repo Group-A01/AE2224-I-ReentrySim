@@ -133,7 +133,7 @@ print("2. Specify a custom end date (YYYY-MM-DD)")
 choice = input("Enter your choice (1 or 2): ")
 
 # Set simulation start epoch
-year, month, day = 2025, 3, 26
+year, month, day = 2022, 9, 27
 # year, month, day = 2018, 3, 16
 start_date = DateTime(year, month, day)  # Simulation start date
 simulation_start_epoch = start_date.epoch()
