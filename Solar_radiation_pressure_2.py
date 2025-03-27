@@ -154,7 +154,7 @@ plt.show()
 '''
 # The 'trend' column contains all the values of F10.7
 print (forecast['ds'].head(5))
-f10_7_arr = forecast['trend'].to_numpy()
+f10_7_arr = forecast['yhat'].to_numpy()
 
 average_10_7 = np.average(f10_7_arr)
 
@@ -164,4 +164,6 @@ forecast = forecast['ds'].to_numpy()
 
 Solar_flux_dates = pd.DataFrame({'Date':forecast, 'Solar Flux':Solar_flux})
 
-print(Solar_flux_dates.tail(10))
+f10_7_values = pd.DataFrame({'Date':forecast, 'F10.7':f10_7_arr})
+#f10_7_values.to_csv("F10.7_predicted_values.txt", sep="\t", index=False)
+
