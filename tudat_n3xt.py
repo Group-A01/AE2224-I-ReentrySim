@@ -1,5 +1,6 @@
 # Load standard modules
 import numpy as np
+import pandas as pd
 from matplotlib import pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
 from matplotlib.animation import FuncAnimation
@@ -132,7 +133,7 @@ print("2. Specify a custom end date (YYYY-MM-DD)")
 choice = input("Enter your choice (1 or 2): ")
 
 # Set simulation start epoch
-year, month, day = 2022, 1, 1
+year, month, day = 2022, 9, 27
 # year, month, day = 2018, 3, 16
 start_date = DateTime(year, month, day)  # Simulation start date
 simulation_start_epoch = start_date.epoch()
@@ -153,8 +154,8 @@ if inp == "1":
     print("Data as of {0}: {1}".format(datetime.today(), tle_data))
 elif inp == "2":
     tle_data = (
-        "1 39428U 13066N   22001.78750000  .00000000  00000-0  00000-0 0  9994",
-        "2 39428  97.8016  20.1745 0120500  93.5035 349.1758 14.70287000 00018"
+        "1 39428U 13066N   22270.40190000  .00000000  00000-0  00000-0 0  9999",
+        "2 39428  97.8162 312.5019 0115520   0.0000 200.4051 14.8500000 000017"
     )
     # tle_data = (
     # "1 39428U 13066N   18075.32153000  .00000240  00000-0  21562-4 0  1232",
@@ -275,19 +276,28 @@ time_years = time_seconds / (365.25 * 24 * 3600) + year  # Convert to years, sta
 altitude = dep_vars_array[:, 19] / 1000  # Altitude in km
 periapsis = dep_vars_array[:,20] /1000 #Periapsis in km
 apoapsis = dep_vars_array[:,21] /1000 #Periapsis in km
+average_alt = (periapsis + apoapsis) * 0.5
 
 # Calculate final simulation date
 final_time_seconds = time_seconds[-1]
 final_date = start_date + timedelta(seconds=final_time_seconds)
 
+#import data to compare with
+actual_data = pd.read_csv("actual_orb_data/n3xt_actualdata.csv")
+act_dates = pd.to_datetime(actual_data.iloc[:, 0])
+act_vals = actual_data.iloc[:, 1:]
+
 # Plot altitude vs. time in years
 plt.figure(figsize=(9, 5))
 plt.title("Altitude of {0} over time".format(satname))
 plt.plot(dates, periapsis, label="Periapsis")
-plt.plot(dates,apoapsis, label="Apoapsis")
+plt.plot(dates, apoapsis, label="Apoapsis")
+plt.plot(dates, average_alt, label="Av.Altitude")
+plt.plot(act_dates, act_vals.iloc[:,3], label="Historical Data")
 plt.xlabel("Time [years]")
 plt.ylabel("Altitude [km]")
 plt.xlim([min(dates), max(dates)])
+plt.ylim([0, 800])
 plt.legend()
 plt.grid()
 plt.tight_layout()
@@ -332,6 +342,7 @@ fig.suptitle('Evolution of Kepler elements over the course of the propagation.')
 semi_major_axis = kepler_elements[:, 0] / 1e3
 ax1.plot(dates, semi_major_axis)
 ax1.set_ylabel('Semi-major axis [km]')
+ax1.set_ylim(0,10000)
 
 # Eccentricity
 eccentricity = kepler_elements[:, 1]
@@ -405,7 +416,7 @@ headr = "Time (Hours), Altitude, Semi Major Axis, Eccentricity, Inclination, Arg
 
 # Store the data array in a csv with header
 print("Writing to file: {0}.csv...".format(satname))
-np.savetxt(satname + ".csv", data, header=headr, delimiter=',')
+np.savetxt("results/"+satname + ".csv", data, header=headr, delimiter=',')
 print("Done!")
 print(f"Final simulation time: {time_hours[-1]:.2f} hours")
 

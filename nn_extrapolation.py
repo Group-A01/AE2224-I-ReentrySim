@@ -99,7 +99,7 @@ Y_test = torch.tensor(Y_test.values).float()
 n_hidden_neurons = 64
 # rates = np.linspace(0.04, 0.04200424116196333, 3)
 # rates = [0.04200424116196333]
-rates = np.linspace(0.015, 0.025, 1)
+rates = np.linspace(0.01, 0.025, 1)
 n_epochs = 2000
 plt.figure()
 errors = []
