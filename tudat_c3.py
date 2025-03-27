@@ -27,7 +27,7 @@ from alive_progress import alive_bar
 spice.load_standard_kernels()
 
 # Define string names for bodies to be created from default.
-bodies_to_create = ["Sun", "Earth", "Moon", "Mars", "Venus"]
+bodies_to_create = ["Sun", "Earth", "Moon"]
 
 satname = "Delfi-C3"
 
@@ -41,26 +41,24 @@ body_settings = environment_setup.get_default_body_settings(
     global_frame_origin,
     global_frame_orientation)
 
-
-def density_f(h, lon, lat, time): #long and lat in deg, h in km, time in datetime64, versions: 0, 2.0, 2.1
-    timedate = np.datetime64("2000-01-01T00:00") + np.timedelta64(int(time), 's')
-    # print(timedate)
-    data = pymsis.calculate(timedate, lon, lat, h, geomagnetic_activity=-1, version=2.1)
-    return data[0,pymsis.Variable.MASS_DENSITY]
+# def density_f(h, lon, lat, time): #long and lat in deg, h in km, time in datetime64, versions: 0, 2.0, 2.1
+#     timedate = np.datetime64("2000-01-01T00:00") + np.timedelta64(int(time), 's')
+#     # print(timedate)
+#     data = pymsis.calculate(timedate, lon, lat, h/1000, geomagnetic_activity=-1, version=2.1)
+#     return data[0,pymsis.Variable.MASS_DENSITY]
 
 # def const_temp(h, lon, lat, time):
 #     timedate = np.datetime64("2000-01-01T00:00") + np.timedelta64(time, 's')
 #     # print(timedate)
-#     data = pymsis.calculate(timedate, lon, lat, h, geomagnetic_activity=-1, version=2.1)
+#     data = pymsis.calculate(timedate, lon, lat, h/1000, geomagnetic_activity=-1, version=2.1)
 #     return data[0,pymsis.Variable.TEMPERATURE]
 
-body_settings.get("Earth").atmosphere_settings = environment_setup.atmosphere.custom_four_dimensional_constant_temperature(
-    density_f,
-    991.96893,
-    300.0, 
-    1.4) 
- #const. temp, sp. gas const, ratio of sp. heats
-
+# body_settings.get("Earth").atmosphere_settings = environment_setup.atmosphere.custom_four_dimensional_constant_temperature(
+#     density_f,
+#     991.96893,
+#     300.0, 
+#     1.4) 
+body_settings.get( "Earth" ).atmosphere_settings = environment_setup.atmosphere.nrlmsise00()
 # Create empty body settings for the satellite
 body_settings.add_empty_settings(satname)
 
@@ -106,12 +104,6 @@ accelerations_settings_delfi_c3 = dict(
     ],
     Moon=[
         propagation_setup.acceleration.point_mass_gravity()
-    ],
-    Mars=[
-        propagation_setup.acceleration.point_mass_gravity()
-    ],
-    Venus=[
-        propagation_setup.acceleration.point_mass_gravity()
     ]
 )
 
@@ -132,26 +124,10 @@ print("2. Specify a custom end date (YYYY-MM-DD)")
 choice = input("Enter your choice (1 or 2): ")
 
 # Set simulation start epoch
-simulation_start_epoch = DateTime(2022, 10, 20).epoch()
+simulation_start_epoch = DateTime(2008, 4, 28).epoch()
 
-# Retrieve the initial state of satellite using Two-Line-Elements (TLEs) (n3xt = 39428U)
-targeturl = "https://celestrak.org/NORAD/elements/gp.php?GROUP=cubesat&FORMAT=tle"
-tle_data = ""
-inp = input("Find current n3xt data or use prebaked? (1,2): ")
-if inp == "1":
-    with urllib.request.urlopen(targeturl) as response:
-        data = response.read().decode('utf-8')
-        lines = data.splitlines()
-        for i in range(len(lines)):
-            slice = lines[i][0:8]
-            if slice == "1 39428U":
-                tle_data = (lines[i], lines[i+1])
-                break
-elif inp == "2":
-    tle_data = ("1 32789U 08021G   22293.83333333  .00000078  00000-0  00000-0 0  9992",
-                "2 32789  97.3323 315.0810 0007800 242.4144 123.5208 16.339720  191544")
-
-print("Data as of {0}: {1}".format(datetime.today(), tle_data))
+tle_data = ("1 32789U 07021G   08119.60740078 -.00000054  00000-0  00000+0 0  9999",
+                "2 32789 098.0082 179.6267 0015321 307.2977 051.0656 14.81417433    68")
 
 delfi_tle = environment.Tle(tle_data[0], tle_data[1])
 delfi_ephemeris = environment.TleEphemeris("Earth", "J2000", delfi_tle, False)
@@ -161,19 +137,11 @@ initial_state = delfi_ephemeris.cartesian_state(simulation_start_epoch)
 dependent_variables_to_save = [
     propagation_setup.dependent_variable.total_acceleration(satname),
     propagation_setup.dependent_variable.keplerian_state(satname, "Earth"),
-    propagation_setup.dependent_variable.latitude(satname, "Earth"),
-    propagation_setup.dependent_variable.longitude(satname, "Earth"),
     propagation_setup.dependent_variable.single_acceleration_norm(
         propagation_setup.acceleration.point_mass_gravity_type, satname, "Sun"
     ),
     propagation_setup.dependent_variable.single_acceleration_norm(
         propagation_setup.acceleration.point_mass_gravity_type, satname, "Moon"
-    ),
-    propagation_setup.dependent_variable.single_acceleration_norm(
-        propagation_setup.acceleration.point_mass_gravity_type, satname, "Mars"
-    ),
-    propagation_setup.dependent_variable.single_acceleration_norm(
-        propagation_setup.acceleration.point_mass_gravity_type, satname, "Venus"
     ),
     propagation_setup.dependent_variable.single_acceleration_norm(
         propagation_setup.acceleration.spherical_harmonic_gravity_type, satname, "Earth"
@@ -184,14 +152,16 @@ dependent_variables_to_save = [
     propagation_setup.dependent_variable.single_acceleration_norm(
         propagation_setup.acceleration.radiation_pressure_type, satname, "Sun"
     ),
-    propagation_setup.dependent_variable.altitude(satname, "Earth")
+    propagation_setup.dependent_variable.altitude(satname, "Earth"),
+    propagation_setup.dependent_variable.periapsis_altitude(satname, "Earth"),
+    propagation_setup.dependent_variable.apoapsis_altitude(satname, "Earth")
 ]
 
 # Create termination settings based on altitude (terminate when altitude <= 120 km)
 altitude_variable = propagation_setup.dependent_variable.altitude(satname, "Earth")
 altitude_termination = propagation_setup.propagator.dependent_variable_termination(
     dependent_variable_settings=altitude_variable,
-    limit_value= 120.0e3,  #in meters
+    limit_value= 200.0e3,  #in meters
     use_as_lower_limit=True,  # Terminate when altitude drops below this value
     terminate_exactly_on_final_condition=False
 )
@@ -246,139 +216,75 @@ with alive_bar(title="Numerical integration:") as bar:
     )
     bar()
 
+console_print_settings = propagator_settings.print_settings
+console_print_settings.print_state_indices = True
+console_print_settings.print_dependent_variable_indices = True
+console_print_settings.print_propagation_clock_time = True
+console_print_settings.print_termination_reason = True
+console_print_settings.print_number_of_function_evaluations = True
+
 # Extract the resulting state and dependent variable history and convert it to an ndarray
 states = dynamics_simulator.propagation_results.state_history
 states_array = result2array(states)
 dep_vars = dynamics_simulator.propagation_results.dependent_variable_history
 dep_vars_array = result2array(dep_vars)
 
-# Plot total acceleration as function of time
+# Extract data
 time_hours = (dep_vars_array[:, 0] - dep_vars_array[0, 0]) / 3600
-total_acceleration_norm = np.linalg.norm(dep_vars_array[:, 1:4], axis=1)
-altitude = dep_vars_array[:, 19] / 1000
-plt.figure(figsize=(9, 5))
-plt.title("Altitude of {0} over time".format(satname))
-plt.plot(time_hours, altitude)
-plt.xlabel("Time [hr]")
-plt.ylabel("Altitude [km]")
-plt.xlim([min(time_hours), max(time_hours)])
-plt.grid()
+periapsis = dep_vars_array[:, 16] / 1000  # Convert to km
+apoapsis = dep_vars_array[:, 17] / 1000   # Convert to km
+
+# Smooth the data using a moving average
+def moving_average(data, window_size):
+    return np.convolve(data, np.ones(window_size)/window_size, mode='valid')
+
+window_size = 50  # Adjust this value based on how much smoothing you want
+periapsis_smooth = moving_average(periapsis, window_size)
+apoapsis_smooth = moving_average(apoapsis, window_size)
+time_smooth = moving_average(time_hours, window_size)
+
+# Create figure with improved styling
+fig, ax1 = plt.subplots(figsize=(12, 6))
+
+# Plot smoothed periapsis and apoapsis
+ax1.plot(time_smooth, periapsis_smooth, 'b-', label='Periapsis Altitude (Smoothed)', linewidth=2)
+ax1.plot(time_smooth, apoapsis_smooth, 'r-', label='Apoapsis Altitude (Smoothed)', linewidth=2)
+# Plot original data faintly for comparison
+ax1.plot(time_hours, periapsis, 'b-', alpha=0.2, label='Periapsis (Raw)', linewidth=1)
+ax1.plot(time_hours, apoapsis, 'r-', alpha=0.2, label='Apoapsis (Raw)', linewidth=1)
+
+ax1.set_xlabel('Time [hours]', fontsize=12)
+ax1.set_ylabel('Altitude [km]', fontsize=12)
+ax1.set_title(f'Apoapsis and Periapsis Altitudes of {satname} Over Time', fontsize=14, pad=20)
+ax1.grid(True, linestyle='--', alpha=0.7)
+ax1.legend(loc='upper left', fontsize=10)
+ax1.set_xlim([min(time_hours), max(time_hours)])
+
+# Adjust y-axis limits for better visibility
+ax1.set_ylim([min(min(periapsis), min(apoapsis)) * 0.95, max(max(periapsis), max(apoapsis)) * 1.05])
+
+# Add some styling
 plt.tight_layout()
 
 plt.figure(figsize=(9, 5))
-plt.title("Total acceleration norm on {0} over the course of propagation.".format(satname))
-plt.plot(time_hours, total_acceleration_norm)
-plt.xlabel('Time [hr]')
-plt.ylabel('Total Acceleration [m/s$^2$]')
-plt.xlim([min(time_hours), max(time_hours)])
-plt.grid()
-plt.tight_layout()
-
-# Plot ground track for a period of 3 hours
-latitude = dep_vars_array[:, 10]
-longitude = dep_vars_array[:, 11]
-hours = 3
-subset = int(len(time_hours) / 24 * hours)
-latitude = np.rad2deg(latitude[0:subset])
-longitude = np.rad2deg(longitude[0:subset])
-colors = np.linspace(0, 100, len(latitude))
-plt.figure(figsize=(9, 5))
-plt.title("3 hour ground track of {0}".format(satname))
-plt.scatter(longitude, latitude, s=1, c=colors, cmap='viridis')
-plt.colorbar()
-plt.xlabel('Longitude [deg]')
-plt.ylabel('Latitude [deg]')
-plt.xlim([min(longitude), max(longitude)])
-plt.yticks(np.arange(-90, 91, step=45))
-plt.grid()
-plt.tight_layout()
-
-# Plot Kepler elements as a function of time
-kepler_elements = dep_vars_array[:, 4:10]
-fig, ((ax1, ax2), (ax3, ax4), (ax5, ax6)) = plt.subplots(3, 2, figsize=(9, 12))
-fig.suptitle('Evolution of Kepler elements over the course of the propagation.')
-
-# Semi-major Axis
-semi_major_axis = kepler_elements[:, 0] / 1e3
-ax1.plot(time_hours, semi_major_axis)
-ax1.set_ylabel('Semi-major axis [km]')
-
-# Eccentricity
-eccentricity = kepler_elements[:, 1]
-ax2.plot(time_hours, eccentricity)
-ax2.set_ylabel('Eccentricity [-]')
-
-# Inclination
-inclination = np.rad2deg(kepler_elements[:, 2])
-ax3.plot(time_hours, inclination)
-ax3.set_ylabel('Inclination [deg]')
-
-# Argument of Periapsis
-argument_of_periapsis = np.rad2deg(kepler_elements[:, 3])
-ax4.plot(time_hours, argument_of_periapsis)
-ax4.set_ylabel('Argument of Periapsis [deg]')
-
-# Right Ascension of the Ascending Node
-raan = np.rad2deg(kepler_elements[:, 4])
-ax5.plot(time_hours, raan)
-ax5.set_ylabel('RAAN [deg]')
-
-# True Anomaly
-true_anomaly = np.rad2deg(kepler_elements[:, 5])
-ax6.scatter(time_hours, true_anomaly, s=1)
-ax6.set_ylabel('True Anomaly [deg]')
-ax6.set_yticks(np.arange(0, 361, step=60))
-
-for ax in fig.get_axes():
-    ax.set_xlabel('Time [hr]')
-    ax.set_xlim([min(time_hours), max(time_hours)])
-    ax.grid()
-plt.tight_layout()
-
-plt.figure(figsize=(9, 5))
-
 # Point Mass Gravity Acceleration Sun
-acceleration_norm_pm_sun = dep_vars_array[:, 12]
+acceleration_norm_pm_sun = dep_vars_array[:, 10]
 plt.plot(time_hours, acceleration_norm_pm_sun, label='PM Sun')
 
 # Point Mass Gravity Acceleration Moon
-acceleration_norm_pm_moon = dep_vars_array[:, 13]
+acceleration_norm_pm_moon = dep_vars_array[:, 11]
 plt.plot(time_hours, acceleration_norm_pm_moon, label='PM Moon')
 
-# Point Mass Gravity Acceleration Mars
-acceleration_norm_pm_mars = dep_vars_array[:, 14]
-plt.plot(time_hours, acceleration_norm_pm_mars, label='PM Mars')
-
-# Point Mass Gravity Acceleration Venus
-acceleration_norm_pm_venus = dep_vars_array[:, 15]
-plt.plot(time_hours, acceleration_norm_pm_venus, label='PM Venus')
-
 # Spherical Harmonic Gravity Acceleration Earth
-acceleration_norm_sh_earth = dep_vars_array[:, 16]
+acceleration_norm_sh_earth = dep_vars_array[:, 12]
 plt.plot(time_hours, acceleration_norm_sh_earth, label='SH Earth')
 
 # Aerodynamic Acceleration Earth
-acceleration_norm_aero_earth = dep_vars_array[:, 17]
+acceleration_norm_aero_earth = dep_vars_array[:, 13]
 plt.plot(time_hours, acceleration_norm_aero_earth, label='Aerodynamic Earth')
 
 # Cannonball Radiation Pressure Acceleration Sun
-acceleration_norm_rp_sun = dep_vars_array[:, 18]
-
-# Store all extracted variables in an np array
-data = np.vstack([time_hours, altitude, semi_major_axis, eccentricity, inclination, argument_of_periapsis, raan, true_anomaly,
-                  acceleration_norm_pm_sun, acceleration_norm_pm_moon, acceleration_norm_pm_mars, acceleration_norm_pm_venus, 
-                  acceleration_norm_sh_earth, acceleration_norm_aero_earth, acceleration_norm_rp_sun])
-data = np.transpose(data)
-headr = "Time (Hours), Altitude, Semi Major Axis, Eccentricity, Inclination, Argument Of Periapsis, RAAN, True Anomaly, " \
-        "Acceleration Norm PM Sun, Acceleration Norm PM Moon, Acceleration Norm PM Mars, Acceleration Norm PM Venus, " \
-        "Acceleration Norm SH Earth, Acceleration Norm Aero Earth, Acceleration Norm RP Sun"
-
-# Store the data array in a csv with header
-print("Writing to file: {0}.csv...".format(satname))
-np.savetxt(satname + ".csv", data, header=headr, delimiter=',')
-print("Done!")
-print(f"Final simulation time: {time_hours[-1]:.2f} hours")
-
+acceleration_norm_rp_sun = dep_vars_array[:, 14]
 plt.plot(time_hours, acceleration_norm_rp_sun, label='Radiation Pressure Sun')
 
 plt.xlim([min(time_hours), max(time_hours)])
@@ -390,6 +296,23 @@ plt.grid()
 plt.tight_layout()
 
 plt.show()
+
+# Cannonball Radiation Pressure Acceleration Sun
+acceleration_norm_rp_sun = dep_vars_array[:, 14]
+
+# Store all extracted variables in an np array
+data = np.vstack([time_hours, periapsis, apoapsis, eccentricity, acceleration_norm_pm_sun, acceleration_norm_pm_moon, 
+                  acceleration_norm_sh_earth, acceleration_norm_aero_earth, acceleration_norm_rp_sun])
+data = np.transpose(data)
+headr = "Time (Hours), Periapsis, Apoapsis Altitude, Eccentricity, Inclination" \
+        "Acceleration Norm PM Sun, Acceleration Norm PM Moon " \
+        "Acceleration Norm SH Earth, Acceleration Norm Aero Earth, Acceleration Norm RP Sun"
+
+# Store the data array in a csv with header
+print("Writing to file: {0}.csv...".format(satname))
+np.savetxt(satname + ".csv", data, header=headr, delimiter=',')
+print("Done!")
+print(f"Final simulation time: {time_hours[-1]:.2f} hours")
 
 # 3D Dynamic Visualization with Full Orbit
 # Extract Cartesian coordinates from the state history
