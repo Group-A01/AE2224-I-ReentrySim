@@ -140,7 +140,7 @@ model.fit(prophet_df)
 # Generate future dates
 future = model.make_future_dataframe(periods=15*365, freq='D')  # Predicting 15 years ahead
 forecast = model.predict(future)
-
+'''
 # Plot results
 plt.figure(figsize=(12, 6))
 plt.plot(prophet_df['ds'], prophet_df['y'], label='Historical F10.7_1', color='blue')
@@ -151,3 +151,12 @@ plt.ylabel('F10.7 Value')
 plt.title('F10.7 Historical and Predicted Values (Prophet Model)')
 plt.legend()
 plt.show()
+'''
+# The 'trend' column contains all the values of F10.7
+
+f10_7_arr = forecast['trend'].to_numpy()
+
+average_10_7 = np.average(f10_7_arr)
+
+Solar_flux = f10_7_arr/average_10_7*1367
+
