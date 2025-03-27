@@ -301,7 +301,7 @@ plt.show()
 acceleration_norm_rp_sun = dep_vars_array[:, 14]
 
 # Store all extracted variables in an np array
-data = np.vstack([time_hours, periapsis, apoapsis, eccentricity, acceleration_norm_pm_sun, acceleration_norm_pm_moon, 
+data = np.vstack([time_hours, periapsis, apoapsis, acceleration_norm_pm_sun, acceleration_norm_pm_moon, 
                   acceleration_norm_sh_earth, acceleration_norm_aero_earth, acceleration_norm_rp_sun])
 data = np.transpose(data)
 headr = "Time (Hours), Periapsis, Apoapsis Altitude, Eccentricity, Inclination" \
