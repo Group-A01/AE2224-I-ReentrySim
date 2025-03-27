@@ -25,9 +25,8 @@ spice.load_standard_kernels()
 # Define string names for bodies to be created from default.
 bodies_to_create = ["Sun", "Earth", "Moon", "Mars", "Venus"]
 
-satname = "Delfi-PQ"
+satname = "Delfi-n3xt"
 
-print('Martin Barov')
 # Use "Earth"/"J2000" as global frame origin and orientation.
 global_frame_origin = "Earth"
 global_frame_orientation = "J2000"
@@ -38,31 +37,35 @@ body_settings = environment_setup.get_default_body_settings(
     global_frame_origin,
     global_frame_orientation)
 
+const_temp=999
 
 def density_f(h, lon, lat, time): #long and lat in deg, h in km, time in datetime64, versions: 0, 2.0, 2.1
     timedate = np.datetime64("2000-01-01T00:00") + np.timedelta64(int(time), 's')
     # print(timedate)
-    data = pymsis.calculate(timedate, lon, lat, h, geomagnetic_activity=-1, version=2.1)
+    data = pymsis.calculate(timedate, lon, lat, h/1000, geomagnetic_activity=-1, version=2.1)
+    global const_temp
+    const_temp = data[0, pymsis.Variable.MASS_DENSITY]
     return data[0,pymsis.Variable.MASS_DENSITY]
 
-def const_temp(h, lon, lat, time):
-    timedate = np.datetime64("2000-01-01T00:00") + np.timedelta64(time, 's')
-    print(timedate)
-    data = pymsis.calculate(timedate, lon, lat, h, geomagnetic_activity=-1, version=2.1)
-    return data[0,pymsis.Variable.TEMPERATURE]
+# def const_temp(h, lon, lat, time):
+#     timedate = np.datetime64("2000-01-01T00:00") + np.timedelta64(time, 's')
+#     print(timedate)
+#     data = pymsis.calculate(timedate, lon, lat, h, geomagnetic_activity=-1, version=2.1)
+#     return data[0,pymsis.Variable.TEMPERATURE]
 
 body_settings.get("Earth").atmosphere_settings = environment_setup.atmosphere.custom_four_dimensional_constant_temperature(
     density_f,
-    991.96893,
+    # 991.96893,
+    const_temp,
     300.0, 
     1.4) 
- #const. temp, sp. gas const, ratio of sp. heats
+#  const. temp, sp. gas const, ratio of sp. heats
 
 # Create empty body settings for the satellite
 body_settings.add_empty_settings(satname)
 
 # Create aerodynamic coefficient interface settings
-reference_area_drag = (4*0.3*0.1+2*0.1*0.1)/4  # Average projection area of a 3U CubeSat
+reference_area_drag = (4*0.3404*0.1+2*0.1*0.1)/4  # Average projection area of a 3U CubeSat
 drag_coefficient = 1.2
 aero_coefficient_settings = environment_setup.aerodynamic_coefficients.constant(
     reference_area_drag, [drag_coefficient, 0.0, 0.0]
@@ -72,7 +75,7 @@ aero_coefficient_settings = environment_setup.aerodynamic_coefficients.constant(
 body_settings.get(satname).aerodynamic_coefficient_settings = aero_coefficient_settings
 
 # Create radiation pressure settings
-reference_area_radiation = (4*0.3*0.1+2*0.1*0.1)/4  # Average projection area of a 3U CubeSat
+reference_area_radiation = (4*0.3404*0.1+2*0.1*0.1)/4  # Average projection area of a 3U CubeSat
 radiation_pressure_coefficient = 1.2
 occulting_bodies_dict = dict()
 occulting_bodies_dict["Sun"] = ["Earth"]
@@ -83,7 +86,7 @@ vehicle_target_settings = environment_setup.radiation_pressure.cannonball_radiat
 body_settings.get(satname).radiation_pressure_target_settings = vehicle_target_settings
 
 bodies = environment_setup.create_system_of_bodies(body_settings)
-bodies.get(satname).mass = 2.8  # kg
+bodies.get(satname).mass = 3.5  # kg
 
 # Define bodies that are propagated
 bodies_to_propagate = [satname]
@@ -129,7 +132,9 @@ print("2. Specify a custom end date (YYYY-MM-DD)")
 choice = input("Enter your choice (1 or 2): ")
 
 # Set simulation start epoch
-simulation_start_epoch = DateTime(2008, 5, 5).epoch()
+year, month, day = 2018, 3, 16
+start_date = DateTime(year, month, day)  # Simulation start date
+simulation_start_epoch = start_date.epoch()
 
 # Retrieve the initial state of satellite using Two-Line-Elements (TLEs) (n3xt = 39428U)
 targeturl = "https://celestrak.org/NORAD/elements/gp.php?GROUP=cubesat&FORMAT=tle"
@@ -144,13 +149,15 @@ if inp == "1":
             if slice == "1 39428U":
                 tle_data = (lines[i], lines[i+1])
                 break
+    print("Data as of {0}: {1}".format(datetime.today(), tle_data))
 elif inp == "2":
     tle_data = (
-    "1 32789U 08021G   08126.86298982  .00000240  00000-0  21562-4 0   123",
-    "2 32789  98.0528 210.5829 0011778 342.5890 017.4188 14.70853390   107"
+    "1 39428U 13066N   18075.32153000  .00000240  00000-0  21562-4 0  1232",
+    "2 39428  97.6502   4.9842 0120600 207.1048 170.7736 14.67040000 00019"
     )   
+    #from https://in-the-sky.org/spacecraft_elements.php?id=39428&startday=24&startmonth=2&startyear=2016&endday=24&endmonth=3&endyear=2018
+    print("Data as of {2}-{1}-{0}: {3}".format(year, month, day, tle_data))
 
-print("Data as of {0}: {1}".format(datetime.today(), tle_data))
 
 delfi_tle = environment.Tle(tle_data[0], tle_data[1])
 delfi_ephemeris = environment.TleEphemeris("Earth", "J2000", delfi_tle, False)
@@ -201,6 +208,7 @@ if choice == "1":
 elif choice == "2":
     while True:
         try:
+            print("Start date: {0}-{1}-{2}".format(year, month, day))
             end_date_str = input("Enter end date (YYYY-MM-DD): ")
             end_date = datetime.strptime(end_date_str, "%Y-%m-%d")
             simulation_end_epoch = DateTime(end_date.year, end_date.month, end_date.day).epoch()
@@ -252,9 +260,11 @@ dep_vars = dynamics_simulator.propagation_results.dependent_variable_history
 dep_vars_array = result2array(dep_vars)
 
 # Convert time to years and calculate final date
-start_date = datetime(2008, 5, 5)  # Simulation start date
+start_date = datetime(year, month, day)  # Simulation start date
 time_seconds = dep_vars_array[:, 0] - dep_vars_array[0, 0]  # Time in seconds from start
-time_years = time_seconds / (365.25 * 24 * 3600) + 2008  # Convert to years, starting at 2008
+dates = np.array([timedelta(seconds=time) + start_date for time in time_seconds])
+print("deltas {0}".format(dates))
+time_years = time_seconds / (365.25 * 24 * 3600) + year  # Convert to years, starting at 2008
 altitude = dep_vars_array[:, 19] / 1000  # Altitude in km
 
 # Calculate final simulation date
@@ -264,10 +274,10 @@ final_date = start_date + timedelta(seconds=final_time_seconds)
 # Plot altitude vs. time in years
 plt.figure(figsize=(9, 5))
 plt.title("Altitude of {0} over time".format(satname))
-plt.plot(time_years, altitude)
+plt.plot(dates, altitude)
 plt.xlabel("Time [years]")
 plt.ylabel("Altitude [km]")
-plt.xlim([min(time_years), max(time_years)])
+plt.xlim([min(dates), max(dates)])
 plt.grid()
 plt.tight_layout()
 
@@ -276,10 +286,10 @@ time_hours = time_seconds / 3600  # Still in hours for other plots
 total_acceleration_norm = np.linalg.norm(dep_vars_array[:, 1:4], axis=1)
 plt.figure(figsize=(9, 5))
 plt.title("Total acceleration norm on {0} over the course of propagation.".format(satname))
-plt.plot(time_hours, total_acceleration_norm)
-plt.xlabel('Time [hr]')
+plt.plot(dates, total_acceleration_norm)
+plt.xlabel('Date [yyyy-mm-dd]')
 plt.ylabel('Total Acceleration [m/s$^2$]')
-plt.xlim([min(time_hours), max(time_hours)])
+plt.xlim([min(dates), max(dates)])
 plt.grid()
 plt.tight_layout()
 
@@ -287,7 +297,7 @@ plt.tight_layout()
 latitude = dep_vars_array[:, 10]
 longitude = dep_vars_array[:, 11]
 hours = 3
-subset = int(len(time_hours) / 24 * hours)
+subset = int(len(dates) / 24 * hours)
 latitude = np.rad2deg(latitude[0:subset])
 longitude = np.rad2deg(longitude[0:subset])
 colors = np.linspace(0, 100, len(latitude))
@@ -309,38 +319,38 @@ fig.suptitle('Evolution of Kepler elements over the course of the propagation.')
 
 # Semi-major Axis
 semi_major_axis = kepler_elements[:, 0] / 1e3
-ax1.plot(time_hours, semi_major_axis)
+ax1.plot(dates, semi_major_axis)
 ax1.set_ylabel('Semi-major axis [km]')
 
 # Eccentricity
 eccentricity = kepler_elements[:, 1]
-ax2.plot(time_hours, eccentricity)
+ax2.plot(dates, eccentricity)
 ax2.set_ylabel('Eccentricity [-]')
 
 # Inclination
 inclination = np.rad2deg(kepler_elements[:, 2])
-ax3.plot(time_hours, inclination)
+ax3.plot(dates, inclination)
 ax3.set_ylabel('Inclination [deg]')
 
 # Argument of Periapsis
 argument_of_periapsis = np.rad2deg(kepler_elements[:, 3])
-ax4.plot(time_hours, argument_of_periapsis)
+ax4.plot(dates, argument_of_periapsis)
 ax4.set_ylabel('Argument of Periapsis [deg]')
 
 # Right Ascension of the Ascending Node
 raan = np.rad2deg(kepler_elements[:, 4])
-ax5.plot(time_hours, raan)
+ax5.plot(dates, raan)
 ax5.set_ylabel('RAAN [deg]')
 
 # True Anomaly
 true_anomaly = np.rad2deg(kepler_elements[:, 5])
-ax6.scatter(time_hours, true_anomaly, s=1)
+ax6.scatter(dates, true_anomaly, s=1)
 ax6.set_ylabel('True Anomaly [deg]')
 ax6.set_yticks(np.arange(0, 361, step=60))
 
 for ax in fig.get_axes():
-    ax.set_xlabel('Time [hr]')
-    ax.set_xlim([min(time_hours), max(time_hours)])
+    ax.set_xlabel('Date [yyyy-mm-dd]')
+    ax.set_xlim([min(dates), max(dates)])
     ax.grid()
 plt.tight_layout()
 
@@ -348,27 +358,27 @@ plt.figure(figsize=(9, 5))
 
 # Point Mass Gravity Acceleration Sun
 acceleration_norm_pm_sun = dep_vars_array[:, 12]
-plt.plot(time_hours, acceleration_norm_pm_sun, label='PM Sun')
+plt.plot(dates, acceleration_norm_pm_sun, label='PM Sun')
 
 # Point Mass Gravity Acceleration Moon
 acceleration_norm_pm_moon = dep_vars_array[:, 13]
-plt.plot(time_hours, acceleration_norm_pm_moon, label='PM Moon')
+plt.plot(dates, acceleration_norm_pm_moon, label='PM Moon')
 
 # Point Mass Gravity Acceleration Mars
 acceleration_norm_pm_mars = dep_vars_array[:, 14]
-plt.plot(time_hours, acceleration_norm_pm_mars, label='PM Mars')
+plt.plot(dates, acceleration_norm_pm_mars, label='PM Mars')
 
 # Point Mass Gravity Acceleration Venus
 acceleration_norm_pm_venus = dep_vars_array[:, 15]
-plt.plot(time_hours, acceleration_norm_pm_venus, label='PM Venus')
+plt.plot(dates, acceleration_norm_pm_venus, label='PM Venus')
 
 # Spherical Harmonic Gravity Acceleration Earth
 acceleration_norm_sh_earth = dep_vars_array[:, 16]
-plt.plot(time_hours, acceleration_norm_sh_earth, label='SH Earth')
+plt.plot(dates, acceleration_norm_sh_earth, label='SH Earth')
 
 # Aerodynamic Acceleration Earth
 acceleration_norm_aero_earth = dep_vars_array[:, 17]
-plt.plot(time_hours, acceleration_norm_aero_earth, label='Aerodynamic Earth')
+plt.plot(dates, acceleration_norm_aero_earth, label='Aerodynamic Earth')
 
 # Cannonball Radiation Pressure Acceleration Sun
 acceleration_norm_rp_sun = dep_vars_array[:, 18]
@@ -388,17 +398,17 @@ np.savetxt(satname + ".csv", data, header=headr, delimiter=',')
 print("Done!")
 print(f"Final simulation time: {time_hours[-1]:.2f} hours")
 
-plt.plot(time_hours, acceleration_norm_rp_sun, label='Radiation Pressure Sun')
+plt.plot(dates, acceleration_norm_rp_sun, label='Radiation Pressure Sun')
 
-plt.xlim([min(time_hours), max(time_hours)])
-plt.xlabel('Time [hr]')
+plt.xlim([min(dates), max(dates)])
+plt.xlabel('Date [yyyy-mm-dd]')
 plt.ylabel('Acceleration Norm [m/s$^2$]')
 plt.legend(bbox_to_anchor=(1.005, 1))
 plt.yscale('log')
 plt.grid()
 plt.tight_layout()
 
-plt.show()
+# plt.show()
 
 # 3D Dynamic Visualization with Full Orbit
 # Extract Cartesian coordinates from the state history
@@ -466,8 +476,10 @@ while True:
 
             # Save the animation as a lightweight MP4 file
             print("Saving animation to 'delfi_n3xt_orbit.mp4'...")
-            ani.save('delfi_n3xt_orbit.mp4', writer='ffmpeg', fps=30, dpi=80, bitrate=2000)  # Lower DPI and set bitrate
-            print("Animation saved!")
+            with alive_bar(title="Saving... ") as bar:
+                ani.save('delfi_n3xt_orbit.mp4', writer='ffmpeg', fps=30, dpi=80, bitrate=2000)  # Lower DPI and set bitrate
+                print("Animation saved!")
+            break
         elif(inp=='n'):
             break
         else:
