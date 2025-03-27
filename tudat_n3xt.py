@@ -275,6 +275,7 @@ time_years = time_seconds / (365.25 * 24 * 3600) + year  # Convert to years, sta
 altitude = dep_vars_array[:, 19] / 1000  # Altitude in km
 periapsis = dep_vars_array[:,20] /1000 #Periapsis in km
 apoapsis = dep_vars_array[:,21] /1000 #Periapsis in km
+average_alt = (periapsis + apoapsis) * 0.5
 
 # Calculate final simulation date
 final_time_seconds = time_seconds[-1]
@@ -285,9 +286,11 @@ plt.figure(figsize=(9, 5))
 plt.title("Altitude of {0} over time".format(satname))
 plt.plot(dates, periapsis, label="Periapsis")
 plt.plot(dates,apoapsis, label="Apoapsis")
+plt.plot(dates, average_alt, label="Av.Altitude")
 plt.xlabel("Time [years]")
 plt.ylabel("Altitude [km]")
 plt.xlim([min(dates), max(dates)])
+plt.ylim([0, 800])
 plt.legend()
 plt.grid()
 plt.tight_layout()
@@ -332,6 +335,7 @@ fig.suptitle('Evolution of Kepler elements over the course of the propagation.')
 semi_major_axis = kepler_elements[:, 0] / 1e3
 ax1.plot(dates, semi_major_axis)
 ax1.set_ylabel('Semi-major axis [km]')
+ax1.set_ylim(0,10000)
 
 # Eccentricity
 eccentricity = kepler_elements[:, 1]
@@ -405,7 +409,7 @@ headr = "Time (Hours), Altitude, Semi Major Axis, Eccentricity, Inclination, Arg
 
 # Store the data array in a csv with header
 print("Writing to file: {0}.csv...".format(satname))
-np.savetxt(satname + ".csv", data, header=headr, delimiter=',')
+np.savetxt("results/"+satname + ".csv", data, header=headr, delimiter=',')
 print("Done!")
 print(f"Final simulation time: {time_hours[-1]:.2f} hours")
 
