@@ -326,6 +326,8 @@ plt.yticks(np.arange(-90, 91, step=45))
 plt.grid()
 plt.tight_layout()
 
+actual_data = np.loadtxt("/actual_")
+
 # Plot Kepler elements as a function of time
 kepler_elements = dep_vars_array[:, 4:10]
 fig, ((ax1, ax2), (ax3, ax4), (ax5, ax6)) = plt.subplots(3, 2, figsize=(9, 12))
