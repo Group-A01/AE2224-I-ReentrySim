@@ -236,9 +236,14 @@ else:
 
 
 # Create numerical integrator settings
+control_settings = propagation_setup.integrator.step_size_control_elementwise_scalar_tolerance( 1.0E-10, 1.0E-10 )
+validation_settings = propagation_setup.integrator.step_size_validation( 0.001, 1000.0 )
 fixed_step_size = 60.0
-integrator_settings = propagation_setup.integrator.runge_kutta_fixed_step(
-    fixed_step_size, coefficient_set=propagation_setup.integrator.CoefficientSets.rk_4
+integrator_settings = propagation_setup.integrator.runge_kutta_variable_step(
+    initial_time_step=fixed_step_size, 
+    coefficient_set=propagation_setup.integrator.CoefficientSets.rkf_45,
+    step_size_control_settings = control_settings,
+    step_size_validation_settings = validation_settings 
 )
 
 # Create propagation settings
