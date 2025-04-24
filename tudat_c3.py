@@ -272,30 +272,14 @@ ax1.set_ylim([min(min(periapsis), min(apoapsis)) * 0.95, max(max(periapsis), max
 plt.tight_layout()
 
 plt.figure(figsize=(9, 5))
-# Point Mass Gravity Acceleration Sun
-acceleration_norm_pm_sun = dep_vars_array[:, 10]
-plt.plot(time_hours, acceleration_norm_pm_sun, label='PM Sun')
-
-# Point Mass Gravity Acceleration Moon
-acceleration_norm_pm_moon = dep_vars_array[:, 11]
-plt.plot(time_hours, acceleration_norm_pm_moon, label='PM Moon')
-
-# Spherical Harmonic Gravity Acceleration Earth
-acceleration_norm_sh_earth = dep_vars_array[:, 12]
-plt.plot(time_hours, acceleration_norm_sh_earth, label='SH Earth')
-
-# Aerodynamic Acceleration Earth
+# Aerodynamic Acceleration Earth (only this one)
 acceleration_norm_aero_earth = dep_vars_array[:, 13]
-plt.plot(time_hours, acceleration_norm_aero_earth, label='Aerodynamic Earth')
-
-# Cannonball Radiation Pressure Acceleration Sun
-acceleration_norm_rp_sun = dep_vars_array[:, 14]
-plt.plot(time_hours, acceleration_norm_rp_sun, label='Radiation Pressure Sun')
+plt.plot(time_hours, acceleration_norm_aero_earth, label='Aerodynamic Drag (Earth)', color='darkorange')
 
 plt.xlim([min(time_hours), max(time_hours)])
 plt.xlabel('Time [hr]')
 plt.ylabel('Acceleration Norm [m/s$^2$]')
-plt.legend(bbox_to_anchor=(1.005, 1))
+plt.legend()
 plt.yscale('log')
 plt.grid()
 plt.tight_layout()
@@ -306,12 +290,9 @@ plt.show()
 acceleration_norm_rp_sun = dep_vars_array[:, 14]
 
 # Store all extracted variables in an np array
-data = np.vstack([time_hours, periapsis, apoapsis, acceleration_norm_pm_sun, acceleration_norm_pm_moon, 
-                  acceleration_norm_sh_earth, acceleration_norm_aero_earth, acceleration_norm_rp_sun])
+data = np.vstack([time_hours, periapsis, apoapsis, acceleration_norm_aero_earth])
 data = np.transpose(data)
-headr = "Time (Hours), Periapsis, Apoapsis Altitude, Eccentricity, Inclination" \
-        "Acceleration Norm PM Sun, Acceleration Norm PM Moon " \
-        "Acceleration Norm SH Earth, Acceleration Norm Aero Earth, Acceleration Norm RP Sun"
+headr = "Time (Hours), Periapsis, Apoapsis, Acceleration Norm Aero Earth"
 
 # Store the data array in a csv with header
 print("Writing to file: {0}.csv...".format(satname))
@@ -319,77 +300,77 @@ np.savetxt(satname + ".csv", data, header=headr, delimiter=',')
 print("Done!")
 print(f"Final simulation time: {time_hours[-1]:.2f} hours")
 
-# 3D Dynamic Visualization with Full Orbit
-# Extract Cartesian coordinates from the state history
-time = states_array[:, 0]  # Time in seconds
-x = states_array[:, 1] / 1e3  # Convert to km
-y = states_array[:, 2] / 1e3
-z = states_array[:, 3] / 1e3
+# # 3D Dynamic Visualization with Full Orbit
+# # Extract Cartesian coordinates from the state history
+# time = states_array[:, 0]  # Time in seconds
+# x = states_array[:, 1] / 1e3  # Convert to km
+# y = states_array[:, 2] / 1e3
+# z = states_array[:, 3] / 1e3
 
-# Subsample for animation (e.g., 1000 frames for a lightweight video)
-step = max(1, len(time) // 1000)  # Aim for ~1000 frames
-frame_indices = np.arange(0, len(time), step)
-x_sub = x[frame_indices]
-y_sub = y[frame_indices]
-z_sub = z[frame_indices]
-time_sub = time[frame_indices]
+# # Subsample for animation (e.g., 1000 frames for a lightweight video)
+# step = max(1, len(time) // 1000)  # Aim for ~1000 frames
+# frame_indices = np.arange(0, len(time), step)
+# x_sub = x[frame_indices]
+# y_sub = y[frame_indices]
+# z_sub = z[frame_indices]
+# time_sub = time[frame_indices]
 
-print(f"Original frames: {len(time)}, Subsampled frames for animation: {len(frame_indices)}")
+# print(f"Original frames: {len(time)}, Subsampled frames for animation: {len(frame_indices)}")
 
-# Create a 3D figure
-fig = plt.figure(figsize=(10, 10))
-ax = fig.add_subplot(111, projection='3d')
+# # Create a 3D figure
+# fig = plt.figure(figsize=(10, 10))
+# ax = fig.add_subplot(111, projection='3d')
 
-# Plot Earth's surface (approximated as a sphere)
-u = np.linspace(0, 2 * np.pi, 50)  # Reduced resolution for faster rendering
-v = np.linspace(0, np.pi, 50)
-earth_radius = 6371  # Earth's radius in km
-x_earth = earth_radius * np.outer(np.cos(u), np.sin(v))
-y_earth = earth_radius * np.outer(np.sin(u), np.sin(v))
-z_earth = earth_radius * np.outer(np.ones(np.size(u)), np.cos(v))
-ax.plot_surface(x_earth, y_earth, z_earth, color='blue', alpha=0.3)
+# # Plot Earth's surface (approximated as a sphere)
+# u = np.linspace(0, 2 * np.pi, 50)  # Reduced resolution for faster rendering
+# v = np.linspace(0, np.pi, 50)
+# earth_radius = 6371  # Earth's radius in km
+# x_earth = earth_radius * np.outer(np.cos(u), np.sin(v))
+# y_earth = earth_radius * np.outer(np.sin(u), np.sin(v))
+# z_earth = earth_radius * np.outer(np.ones(np.size(u)), np.cos(v))
+# ax.plot_surface(x_earth, y_earth, z_earth, color='blue', alpha=0.3)
 
-# Plot the full orbit trace statically (using all points for detail)
-ax.plot(x, y, z, 'g-', linewidth=1, label='Full Orbit Trace')
+# # Plot the full orbit trace statically (using all points for detail)
+# ax.plot(x, y, z, 'g-', linewidth=1, label='Full Orbit Trace')
 
-# Initialize the satellite's position (animated part)
-sat_point, = ax.plot([x_sub[0]], [y_sub[0]], [z_sub[0]], 'ro', label=satname, markersize=5)
+# # Initialize the satellite's position (animated part)
+# sat_point, = ax.plot([x_sub[0]], [y_sub[0]], [z_sub[0]], 'ro', label=satname, markersize=5)
 
-# Set plot limits
-ax.set_xlim([-10000, 10000])
-ax.set_ylim([-10000, 10000])
-ax.set_zlim([-10000, 10000])
-ax.set_xlabel('X [km]')
-ax.set_ylabel('Y [km]')
-ax.set_zlabel('Z [km]')
-ax.set_title('Dynamic 3D Orbit of {0}'.format(satname))
-ax.legend()
+# # Set plot limits
+# ax.set_xlim([-10000, 10000])
+# ax.set_ylim([-10000, 10000])
+# ax.set_zlim([-10000, 10000])
+# ax.set_xlabel('X [km]')
+# ax.set_ylabel('Y [km]')
+# ax.set_zlabel('Z [km]')
+# ax.set_title('Dynamic 3D Orbit of {0}'.format(satname))
+# ax.legend()
 
-plt.show()
-while True:
-    try:
-        inp = input("Save animation? (y/n): ")
-        if(inp=="y"):
-            # Animation initialization function
-            def init():
-                sat_point.set_data_3d([x_sub[0]], [y_sub[0]], [z_sub[0]])
-                return sat_point,
+# plt.show()
+# while True:
+#     try:
+#         inp = input("Save animation? (y/n): ")
+#         if(inp=="y"):
+#             # Animation initialization function
+#             def init():
+#                 sat_point.set_data_3d([x_sub[0]], [y_sub[0]], [z_sub[0]])
+#                 return sat_point,
 
-            # Animation update function (only moves the satellite)
-            def update(frame):
-                sat_point.set_data_3d([x_sub[frame]], [y_sub[frame]], [z_sub[frame]])
-                return sat_point,
+#             # Animation update function (only moves the satellite)
+#             def update(frame):
+#                 sat_point.set_data_3d([x_sub[frame]], [y_sub[frame]], [z_sub[frame]])
+#                 return sat_point,
 
-            # Create animation
-            ani = FuncAnimation(fig, update, frames=len(frame_indices), init_func=init, blit=False, interval=50)
+#             # Create animation
+#             ani = FuncAnimation(fig, update, frames=len(frame_indices), init_func=init, blit=False, interval=50)
 
-            # Save the animation as a lightweight MP4 file
-            print("Saving animation to 'delfi_n3xt_orbit.mp4'...")
-            ani.save('delfi_n3xt_orbit.mp4', writer='ffmpeg', fps=30, dpi=80, bitrate=2000)  # Lower DPI and set bitrate
-            print("Animation saved!")
-        elif(inp=='n'):
-            break
-        else:
-            raise Exception
-    except:
-        print("Inlvaid input")
+#             # Save the animation as a lightweight MP4 file
+#             print("Saving animation to 'delfi_n3xt_orbit.mp4'...")
+#             ani.save('delfi_n3xt_orbit.mp4', writer='ffmpeg', fps=30, dpi=80, bitrate=2000)  # Lower DPI and set bitrate
+#             print("Animation saved!")
+#         elif(inp=='n'):
+#             break
+#         else:
+#             raise Exception
+#     except:
+#         print("Inlvaid input")

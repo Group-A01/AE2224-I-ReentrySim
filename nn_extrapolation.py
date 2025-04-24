@@ -56,7 +56,7 @@ def train_regressor_nn(n_features, n_hidden_neurons, learning_rate, n_epochs, X,
 switch = True
 if switch:
     # data = np.genfromtxt("snfuture.csv", delimiter=",")
-    data = pd.read_csv("snfuture.csv")
+    data = pd.read_csv("real_data.csv")
     print(data)
     X = data.loc[:,["days", "dB", "SN"]]
     Y = data.loc[:,["Ap"]]
