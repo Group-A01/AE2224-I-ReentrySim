@@ -20,13 +20,19 @@ import pymsis
 import urllib.request
 from alive_progress import alive_bar
 
+from C3_TLE_data_extraction import TLE_extract
+
 # Load spice kernels
 spice.load_standard_kernels()
 
 # Define string names for bodies to be created from default.
 bodies_to_create = ["Sun", "Earth", "Moon", "Mars", "Venus"]
 
-satname = "Delfi-n3xt"
+# satname = "Delfi-n3xt"
+satname = "Delfi-C3"
+
+#actual data import
+actual_periapsis, actual_apoapsis, actual_dates = TLE_extract()
 
 # Use "Earth"/"J2000" as global frame origin and orientation.
 global_frame_origin = "Earth"
@@ -65,18 +71,44 @@ body_settings.get("Earth").atmosphere_settings = environment_setup.atmosphere.cu
 # Create empty body settings for the satellite
 body_settings.add_empty_settings(satname)
 
+# # Create aerodynamic coefficient interface settings
+# reference_area_drag = (4*0.3404*0.1+2*0.1*0.1)/4  # Average projection area of a 3U CubeSat
+# drag_coefficient = 1.2
+# aero_coefficient_settings = environment_setup.aerodynamic_coefficients.constant(
+#     reference_area_drag, [drag_coefficient, 0.0, 0.0]
+# )
+
+# # Add the aerodynamic interface to the body settings
+# body_settings.get(satname).aerodynamic_coefficient_settings = aero_coefficient_settings
+
+# # Create radiation pressure settings
+# reference_area_radiation = (4*0.3404*0.1+2*0.1*0.1)/4  # Average projection area of a 3U CubeSat
+# radiation_pressure_coefficient = 1.2
+# occulting_bodies_dict = dict()
+# occulting_bodies_dict["Sun"] = ["Earth"]
+# vehicle_target_settings = environment_setup.radiation_pressure.cannonball_radiation_target(
+#     reference_area_radiation, radiation_pressure_coefficient, occulting_bodies_dict)
+
 # Create aerodynamic coefficient interface settings
-reference_area_drag = (4*0.3404*0.1+2*0.1*0.1)/4  # Average projection area of a 3U CubeSat
-drag_coefficient = 1.2
-aero_coefficient_settings = environment_setup.aerodynamic_coefficients.constant(
-    reference_area_drag, [drag_coefficient, 0.0, 0.0]
+reference_area_drag = (4*0.3*0.1+2*0.1*0.1)/4  # Average projection area of a 3U CubeSat
+def aerodynamic_force_coefficients(time):
+    reference_area = 0.1*np.sin(2*np.pi/4 *time)
+    drag_coefficient = 2 * reference_area  # Example calculation
+    return [drag_coefficient, 0.0, 0.0] # [CD, CY, CL]
+# drag_coefficient = 1.2
+# aero_coefficient_settings = environment_setup.aerodynamic_coefficients.constant(
+#     reference_area_drag, [drag_coefficient, 0.0, 0.0]
+# )
+aero_coefficient_settings = environment_setup.aerodynamic_coefficients.custom_aerodynamic_force_coefficients(
+    force_coefficient_function = aerodynamic_force_coefficients,
+    # independent_variable_names=["time"]
 )
 
 # Add the aerodynamic interface to the body settings
 body_settings.get(satname).aerodynamic_coefficient_settings = aero_coefficient_settings
 
 # Create radiation pressure settings
-reference_area_radiation = (4*0.3404*0.1+2*0.1*0.1)/4  # Average projection area of a 3U CubeSat
+reference_area_radiation = (4*0.3*0.1+2*0.1*0.1)/4  # Average projection area of a 3U CubeSat
 radiation_pressure_coefficient = 1.2
 occulting_bodies_dict = dict()
 occulting_bodies_dict["Sun"] = ["Earth"]
@@ -87,7 +119,8 @@ vehicle_target_settings = environment_setup.radiation_pressure.cannonball_radiat
 body_settings.get(satname).radiation_pressure_target_settings = vehicle_target_settings
 
 bodies = environment_setup.create_system_of_bodies(body_settings)
-bodies.get(satname).mass = 3.5  # kg
+# bodies.get(satname).mass = 3.5  # kg
+bodies.get(satname).mass = 2.2  # kg
 
 # Define bodies that are propagated
 bodies_to_propagate = [satname]
@@ -132,16 +165,62 @@ print("1. Simulate until altitude reaches 120 km")
 print("2. Specify a custom end date (YYYY-MM-DD)")
 choice = input("Enter your choice (1 or 2): ")
 
-# Set simulation start epoch
-year, month, day = 2024, 4, 21
-# year, month, day = 2018, 3, 16
-start_date = DateTime(year, month, day)  # Simulation start date
-simulation_start_epoch = start_date.epoch()
+# Create termination settings based on altitude (terminate when altitude <= 120 km)
+altitude_variable = propagation_setup.dependent_variable.altitude(satname, "Earth")
+altitude_termination = propagation_setup.propagator.dependent_variable_termination(
+    dependent_variable_settings=altitude_variable,
+    limit_value= 120.0e3,  #in meters
+    use_as_lower_limit=True,  # Terminate when altitude drops below this value
+    terminate_exactly_on_final_condition=False
+)
 
+# Create numerical integrator settings
+control_settings = propagation_setup.integrator.step_size_control_elementwise_scalar_tolerance( 1.0E-10, 1.0E-10 )
+validation_settings = propagation_setup.integrator.step_size_validation( 0.001, 1000.0 )
+fixed_step_size = 60.0
+integrator_settings = propagation_setup.integrator.runge_kutta_variable_step(
+    initial_time_step=fixed_step_size, 
+    coefficient_set=propagation_setup.integrator.CoefficientSets.rkf_45,
+    step_size_control_settings = control_settings,
+    step_size_validation_settings = validation_settings 
+)
+
+# print("Start date: {0}-{1}-{2}".format(year, month, day))
+start_date_str = input("Enter start date (YYYY-MM-DD): ")
+start_date = datetime.strptime(start_date_str, "%Y-%m-%d")
+simulation_start_epoch = DateTime(start_date.year, start_date.month, start_date.day).epoch()
+
+if choice == "1":
+    termination_condition = altitude_termination
+    print("Simulating until altitude reaches 120 km...")
+elif choice == "2":
+    while True:
+        try:
+            end_date_str = input("Enter end date (YYYY-MM-DD): ")
+            end_date = datetime.strptime(end_date_str, "%Y-%m-%d")
+            simulation_end_epoch = DateTime(end_date.year, end_date.month, end_date.day).epoch()
+            if simulation_end_epoch <= simulation_start_epoch:
+                print("End date must be after start date. Try again.")
+                continue
+            time_termination = propagation_setup.propagator.time_termination(simulation_end_epoch)
+            termination_condition = propagation_setup.propagator.hybrid_termination(
+                [altitude_termination, time_termination], fulfill_single_condition=True)
+            print(f"Simulating until {end_date_str} or 120 km altitude, whichever comes first...")
+            break
+        except ValueError:
+            print("Invalid date format. Please use YYYY-MM-DD (e.g., 2024-12-31).")
+else:
+    print("Invalid choice. Terminating script.")
+    exit()
+
+# # Set simulation start epoch
+# year, month, day = 2024, 4, 21
+# # year, month, day = 2018, 3, 16
+# start_date = DateTime(year, month, day)  # Simulation start date
 # Retrieve the initial state of satellite using Two-Line-Elements (TLEs) (n3xt = 39428U)
 targeturl = "https://celestrak.org/NORAD/elements/gp.php?GROUP=cubesat&FORMAT=tle"
 tle_data = ""
-inp = input("Find current n3xt data or use prebaked? (1,2): ")
+inp = input("Find current data or use prebaked? (1,2): ")
 if inp == "1":
     with urllib.request.urlopen(targeturl) as response:
         data = response.read().decode('utf-8')
@@ -154,20 +233,24 @@ if inp == "1":
     print("Data as of {0}: {1}".format(datetime.today(), tle_data))
 elif inp == "2":
     tle_data = (
-        "1 39428U 13066N   22270.40190000  .00000000  00000-0  00000-0 0  9999",
-        "2 39428  97.8162 312.5019 0115520   0.0000 200.4051 14.8500000 000017"
+        "1 32789U 08021G   21317.57983842  .00002962  00000-0  18660-3 0  9993",
+        "2 32789  97.3635 347.1658 0011139 357.7651   2.3527 15.09855247739326"
     )
+
+    "1 39428U 13066N   22270.40190000  .00000000  00000-0  00000-0 0  9999",
+    "2 39428  97.8162 312.5019 0115520   0.0000 200.4051 14.8500000 000017" 
+
     # tle_data = (
     # "1 39428U 13066N   18075.32153000  .00000240  00000-0  21562-4 0  1232",
     # "2 39428  97.6502   4.9842 0120600 207.1048 170.7736 14.67040000 00019"
     # )   
     #from https://in-the-sky.org/spacecraft_elements.php?id=39428&startday=24&startmonth=2&startyear=2016&endday=24&endmonth=3&endyear=2018
-    print("Data as of {2}-{1}-{0}: {3}".format(year, month, day, tle_data))
-
+    print("Data as of {0}: {1}".format(np.datetime64('today'), tle_data))
 
 delfi_tle = environment.Tle(tle_data[0], tle_data[1])
 delfi_ephemeris = environment.TleEphemeris("Earth", "J2000", delfi_tle, False)
 initial_state = delfi_ephemeris.cartesian_state(simulation_start_epoch)
+
 
 # Define list of dependent variables to save
 dependent_variables_to_save = [
@@ -201,51 +284,6 @@ dependent_variables_to_save = [
     propagation_setup.dependent_variable.apoapsis_altitude(satname, "Earth")
 ]
 
-# Create termination settings based on altitude (terminate when altitude <= 120 km)
-altitude_variable = propagation_setup.dependent_variable.altitude(satname, "Earth")
-altitude_termination = propagation_setup.propagator.dependent_variable_termination(
-    dependent_variable_settings=altitude_variable,
-    limit_value= 120.0e3,  #in meters
-    use_as_lower_limit=True,  # Terminate when altitude drops below this value
-    terminate_exactly_on_final_condition=False
-)
-
-if choice == "1":
-    termination_condition = altitude_termination
-    print("Simulating until altitude reaches 120 km...")
-elif choice == "2":
-    while True:
-        try:
-            print("Start date: {0}-{1}-{2}".format(year, month, day))
-            end_date_str = input("Enter end date (YYYY-MM-DD): ")
-            end_date = datetime.strptime(end_date_str, "%Y-%m-%d")
-            simulation_end_epoch = DateTime(end_date.year, end_date.month, end_date.day).epoch()
-            if simulation_end_epoch <= simulation_start_epoch:
-                print("End date must be after start date (2024-03-08). Try again.")
-                continue
-            time_termination = propagation_setup.propagator.time_termination(simulation_end_epoch)
-            termination_condition = propagation_setup.propagator.hybrid_termination(
-                [altitude_termination, time_termination], fulfill_single_condition=True)
-            print(f"Simulating until {end_date_str} or 120 km altitude, whichever comes first...")
-            break
-        except ValueError:
-            print("Invalid date format. Please use YYYY-MM-DD (e.g., 2024-12-31).")
-else:
-    print("Invalid choice. Terminating script.")
-    exit()
-
-
-# Create numerical integrator settings
-control_settings = propagation_setup.integrator.step_size_control_elementwise_scalar_tolerance( 1.0E-10, 1.0E-10 )
-validation_settings = propagation_setup.integrator.step_size_validation( 0.001, 1000.0 )
-fixed_step_size = 60.0
-integrator_settings = propagation_setup.integrator.runge_kutta_variable_step(
-    initial_time_step=fixed_step_size, 
-    coefficient_set=propagation_setup.integrator.CoefficientSets.rkf_45,
-    step_size_control_settings = control_settings,
-    step_size_validation_settings = validation_settings 
-)
-
 # Create propagation settings
 propagator_settings = propagation_setup.propagator.translational(
     central_bodies,
@@ -273,11 +311,11 @@ dep_vars = dynamics_simulator.propagation_results.dependent_variable_history
 dep_vars_array = result2array(dep_vars)
 print(dep_vars_array.shape)
 # Convert time to years and calculate final date
-start_date = datetime(year, month, day)  # Simulation start date
+start_date = datetime(start_date.year, start_date.month, start_date.day)  # Simulation start date
 time_seconds = dep_vars_array[:, 0] - dep_vars_array[0, 0]  # Time in seconds from start
 dates = np.array([timedelta(seconds=time) + start_date for time in time_seconds])
 # print("deltas {0}".format(dates))
-time_years = time_seconds / (365.25 * 24 * 3600) + year  # Convert to years, starting at 2008
+time_years = time_seconds / (365.25 * 24 * 3600) + start_date.year  # Convert to years, starting at 2008
 altitude = dep_vars_array[:, 19] / 1000  # Altitude in km
 periapsis = dep_vars_array[:,20] /1000 #Periapsis in km
 apoapsis = dep_vars_array[:,21] /1000 #Periapsis in km
@@ -292,21 +330,21 @@ actual_data = pd.read_csv("actual_orb_data/n3xt_actualdata.csv")
 act_dates = pd.to_datetime(actual_data.iloc[:, 0])
 act_vals = actual_data.iloc[:, 1:]
 
-# Plot altitude vs. time in years
-plt.figure(figsize=(9, 5))
-plt.title("Altitude of {0} over time".format(satname))
-plt.plot(dates, periapsis, label="Periapsis")
-plt.plot(dates, apoapsis, label="Apoapsis")
-plt.plot(dates, average_alt, label="Av.Altitude")
-plt.plot(act_dates, act_vals.iloc[:,3], label="Historical Data")
-plt.xlabel("Time [years]")
-plt.ylabel("Altitude [km]")
-plt.xlim([min(dates), max(dates)])
-plt.ylim([0, 800])
-plt.legend()
-plt.grid()
-plt.tight_layout()
-plt.show()
+# # Plot altitude vs. time in years
+# plt.figure(figsize=(9, 5))
+# plt.title("Altitude of {0} over time".format(satname))
+# plt.plot(dates, periapsis, label="Periapsis")
+# plt.plot(dates, apoapsis, label="Apoapsis")
+# plt.plot(dates, average_alt, label="Av.Altitude")
+# plt.plot(act_dates, act_vals.iloc[:,3], label="Historical Data")
+# plt.xlabel("Time [years]")
+# plt.ylabel("Altitude [km]")
+# plt.xlim([min(dates), max(dates)])
+# plt.ylim([0, 800])
+# plt.legend()
+# plt.grid()
+# plt.tight_layout()
+# plt.show()
 
 time_hours = time_seconds / 3600  # Still in hours for other plots
 total_acceleration_norm = np.linalg.norm(dep_vars_array[:, 1:4], axis=1)
@@ -319,6 +357,41 @@ latitude = np.rad2deg(latitude[0:subset])
 longitude = np.rad2deg(longitude[0:subset])
 colors = np.linspace(0, 100, len(latitude))
 
+# Smooth the data using a moving average
+def moving_average(data, window_size):
+    return np.convolve(data, np.ones(window_size)/window_size, mode='valid')
+
+window_size = 50  # Adjust this value based on how much smoothing you want
+periapsis_smooth = moving_average(periapsis, window_size)
+apoapsis_smooth = moving_average(apoapsis, window_size)
+time_smooth = moving_average(time_hours, window_size)
+
+# Create figure with improved styling
+fig, axs = plt.subplots(figsize=(12, 6))
+
+# # Plot smoothed periapsis and apoapsis
+# axs.plot(time_smooth, periapsis_smooth, 'b-', label='Periapsis Altitude (Smoothed)', linewidth=2)
+# axs.plot(time_smooth, apoapsis_smooth, 'r-', label='Apoapsis Altitude (Smoothed)', linewidth=2)
+# Plot original data faintly for comparison
+axs.plot(dates, periapsis, 'b-', alpha=1, label='Periapsis (Raw)', linewidth=1)
+axs.plot(dates, apoapsis, 'r-', alpha=1, label='Apoapsis (Raw)', linewidth=1)
+#actual
+axs.plot(actual_dates, actual_periapsis, 'b-', alpha=1, label='Periapsis (Raw)', linewidth=1)
+axs.plot(actual_dates, actual_apoapsis, 'r-', alpha=1, label='Apoapsis (Raw)', linewidth=1)
+
+axs.set_xlabel('Time [hours]', fontsize=12)
+axs.set_ylabel('Altitude [km]', fontsize=12)
+axs.set_title(f'Apoapsis and Periapsis Altitudes of {satname} Over Time', fontsize=14, pad=20)
+axs.grid(True, linestyle='--', alpha=0.7)
+axs.legend(loc='upper left', fontsize=10)
+axs.set_xlim([min(dates), max(dates)])
+
+# Adjust y-axis limits for better visibility
+axs.set_ylim([min(min(periapsis), min(apoapsis)) * 0.95, max(max(periapsis), max(apoapsis)) * 1.05])
+
+# Add some styling
+plt.tight_layout()
+plt.show()
 kepler_elements = dep_vars_array[:, 4:10]
 
 semi_major_axis = kepler_elements[:, 0] / 1e3
