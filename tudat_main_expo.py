@@ -40,26 +40,18 @@ body_settings = environment_setup.get_default_body_settings(
     global_frame_origin,
     global_frame_orientation)
 
-const_temp = 1000  # Realistic thermospheric temperature in K
 
-def density_f(h, lon, lat, time):
-    # Time is seconds since simulation start (2021-11-13)
-    start_date = np.datetime64("2000-01-01T00:00")
-    timedate = start_date + np.timedelta64(int(time), 's')
-    # Use h in kilometers (pymsis expects km)
-    data = pymsis.calculate(timedate, lon, lat, h, geomagnetic_activity=-1, version=2.1)
-    density = data[0, pymsis.Variable.MASS_DENSITY]
-    # Optional: Log for debugging (uncomment to verify density)
-    # print(f"Altitude: {h} km, Lon: {lon} deg, Lat: {lat} deg, Time: {timedate}, Density: {density} kg/m^3")
-    return density
+body_settings.get("Earth").atmosphere_settings = environment_setup.atmosphere.exponential(
+    7.2e3,
+    1.225,
+    999,
+    300,
+    1.4
+)
 
-body_settings.get("Earth").atmosphere_settings = environment_setup.atmosphere.custom_four_dimensional_constant_temperature(
-    density_f,
-    const_temp,
-    8.314 / 0.016,  # Scale height in km (typical for thermosphere)
-    1.667)  # R/M for atomic oxygen (~519 J/(kg·K))
 # Create empty body settings for the satellite
 body_settings.add_empty_settings(satname)
+
 
 # Create aerodynamic coefficient interface settings
 reference_area_drag = (4*0.3*0.1+2*0.1*0.1)/4  # Average projection area of a 3U CubeSat
@@ -286,7 +278,7 @@ ax1.set_ylim([min(min(periapsis_smooth), min(apoapsis_smooth)) * 0.95, max(max(p
 
 # Add some styling
 plt.tight_layout()
-plt.savefig('results/C3/C3_altitude.png')
+plt.savefig('results/C3/C3_altitude_expo.png')
 
 # Create figure for aerodynamic acceleration (unsmoothed) with thin, smooth line
 plt.figure(figsize=(9, 5))
@@ -299,18 +291,18 @@ plt.legend(loc='upper right', fontsize=10)
 plt.yscale('log')
 plt.grid(True, linestyle='--', alpha=0.7)
 plt.tight_layout()
-plt.savefig('results/C3/C3_drag_acceleration.png')
+plt.savefig('results/C3/C3_drag_acceleration_expo.png')
 
 plt.show()
 
 # Store all extracted variables in an np array (using original full-length data)
-data = np.vstack([dates_smooth, apoapsis, periapsis, acceleration_norm_aero_earth])
+data = np.vstack([time_hours, apoapsis, periapsis, acceleration_norm_aero_earth])
 data = np.transpose(data)
 headr = "Time (Hours), Apoapsis, Periapsis, Acceleration Norm Aero Earth"
 
 # Store the data array in a csv with header
 print("Writing to file: {0}.csv...".format(satname))
-np.savetxt("results/C3/"+satname + ".csv", data, header=headr, delimiter=',')
+np.savetxt("results/C3/"+satname +'_expo' + ".csv", data, header=headr, delimiter=',')
 print("Done!")
 print(f"Final simulation time: {time_hours[-1]:.2f} hours")
 print(f"Final simulation date: {final_date.strftime('%Y-%m-%d')}")
