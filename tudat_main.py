@@ -368,32 +368,6 @@ periapsis_smooth = moving_average(periapsis, window_size)
 apoapsis_smooth = moving_average(apoapsis, window_size)
 time_smooth = moving_average(time_hours, window_size)
 
-# Create figure with improved styling
-fig, axs = plt.subplots(figsize=(12, 6))
-
-# # Plot smoothed periapsis and apoapsis
-# axs.plot(time_smooth, periapsis_smooth, 'b-', label='Periapsis Altitude (Smoothed)', linewidth=2)
-# axs.plot(time_smooth, apoapsis_smooth, 'r-', label='Apoapsis Altitude (Smoothed)', linewidth=2)
-# Plot original data faintly for comparison
-axs.plot(dates[::86400/fixed_step_size], periapsis[::86400/fixed_step_size], 'b-', alpha=1, label='Periapsis (Raw)', linewidth=1)
-axs.plot(dates[::86400/fixed_step_size], apoapsis[::86400/fixed_step_size], 'r-', alpha=1, label='Apoapsis (Raw)', linewidth=1)
-#actual
-axs.plot(actual_dates, actual_periapsis, 'b-', alpha=1, label='Periapsis (Raw)', linewidth=1)
-axs.plot(actual_dates, actual_apoapsis, 'r-', alpha=1, label='Apoapsis (Raw)', linewidth=1)
-
-axs.set_xlabel('Time [hours]', fontsize=12)
-axs.set_ylabel('Altitude [km]', fontsize=12)
-axs.set_title(f'Apoapsis and Periapsis Altitudes of {satname} Over Time', fontsize=14, pad=20)
-axs.grid(True, linestyle='--', alpha=0.7)
-axs.legend(loc='upper left', fontsize=10)
-axs.set_xlim([min(dates), max(dates)])
-
-# Adjust y-axis limits for better visibility
-axs.set_ylim([min(min(periapsis), min(apoapsis)) * 0.95, max(max(periapsis), max(apoapsis)) * 1.05])
-
-# Add some styling
-plt.tight_layout()
-plt.show()
 kepler_elements = dep_vars_array[:, 4:10]
 
 semi_major_axis = kepler_elements[:, 0] / 1e3
@@ -522,7 +496,7 @@ plt.xlim([min(dates), max(dates)])
 plt.ylim(0,10)
 plt.grid()
 plt.tight_layout()
-plt.savefig("results/n3xt/n3xt_tot_acceleration")
+plt.savefig("results/n3xt/"+satname+"_tot_acceleration")
 
 # Plot ground track for a period of 3 hours
 plt.figure(figsize=(9, 5))
@@ -535,7 +509,7 @@ plt.xlim([min(longitude), max(longitude)])
 plt.yticks(np.arange(-90, 91, step=45))
 plt.grid()
 plt.tight_layout()
-plt.savefig("results/n3xt/n3xt_groundtrack")
+plt.savefig("results/n3xt/"+satname+"_groundtrack")
 
 # Plot Kepler elements as a function of time
 fig, ((ax1, ax2), (ax3, ax4), (ax5, ax6)) = plt.subplots(3, 2, figsize=(15, 12))
@@ -565,7 +539,7 @@ for ax in fig.get_axes():
     ax.set_xlim([min(dates), max(dates)])
     ax.grid()
 plt.tight_layout()
-plt.savefig("results/n3xt/n3xt_elements")
+plt.savefig("results/n3xt/"+satname+"_elements")
 
 #plot accelerations
 plt.figure(figsize=(9, 5))
@@ -583,4 +557,34 @@ plt.legend(bbox_to_anchor=(1.005, 1))
 plt.yscale('log')
 plt.grid()
 plt.tight_layout()
-plt.savefig("results/n3xt/n3xt_accelerations")
+plt.savefig("results/n3xt/"+satname+"_accelerations")
+
+plt.close("all")
+
+# Create figure with improved styling
+fig, axs = plt.subplots(figsize=(12, 6))
+
+# # Plot smoothed periapsis and apoapsis
+# axs.plot(time_smooth, periapsis_smooth, 'b-', label='Periapsis Altitude (Smoothed)', linewidth=2)
+# axs.plot(time_smooth, apoapsis_smooth, 'r-', label='Apoapsis Altitude (Smoothed)', linewidth=2)
+# Plot original data faintly for comparison
+axs.plot(dates[::int(86400/fixed_step_size)], periapsis[::int(86400/fixed_step_size)], 'b-', alpha=1, label='Periapsis (Raw)', linewidth=1)
+axs.plot(dates[::int(86400/fixed_step_size)], apoapsis[::int(86400/fixed_step_size)], 'r-', alpha=1, label='Apoapsis (Raw)', linewidth=1)
+#actual
+axs.plot(actual_dates, actual_periapsis, 'b-', alpha=1, label='Periapsis (Raw)', linewidth=1)
+axs.plot(actual_dates, actual_apoapsis, 'r-', alpha=1, label='Apoapsis (Raw)', linewidth=1)
+
+axs.set_xlabel('Time [hours]', fontsize=12)
+axs.set_ylabel('Altitude [km]', fontsize=12)
+axs.set_title(f'Apoapsis and Periapsis Altitudes of {satname} Over Time', fontsize=14, pad=20)
+axs.grid(True, linestyle='--', alpha=0.7)
+axs.legend(loc='upper left', fontsize=10)
+axs.set_xlim([min(dates), max(dates)])
+
+# Adjust y-axis limits for better visibility
+axs.set_ylim([min(min(periapsis), min(apoapsis)) * 0.95, max(max(periapsis), max(apoapsis)) * 1.05])
+
+# Add some styling
+plt.tight_layout()
+plt.savefig("results/n3xt/"+satname+"_altitude_over_time")
+plt.show()
