@@ -123,8 +123,10 @@ print("2. Specify a custom end date (YYYY-MM-DD), from 13 November 2021")
 choice = input("Enter your choice (1 or 2): ")
 
 # Set simulation start epoch
-year, month, day = 2021, 11, 13
-simulation_start_epoch = DateTime(year, month, day).epoch()
+# print("Start date: {0}-{1}-{2}".format(year, month, day))
+start_date_str = input("Enter start date (YYYY-MM-DD): ")
+start_date = datetime.strptime(start_date_str, "%Y-%m-%d")
+simulation_start_epoch = DateTime(start_date.year, start_date.month, start_date.day).epoch()
 
 tle_data = ("1 32789U 08021G   21317.57983842  .00002962  00000-0  18660-3 0  9993",
             "2 32789  97.3635 347.1658 0011139 357.7651   2.3527 15.09855247739326")
@@ -254,7 +256,7 @@ time_seconds = dep_vars_array[:, 0] - dep_vars_array[0, 0]  # Time in seconds fr
 time_seconds_smooth = time_seconds[smooth_indices]
 
 # Convert smoothed time to dates
-start_date = datetime(year, month, day)  # Simulation start date
+start_date = datetime(start_date.year, start_date.month, start_date.day)  # Simulation start date
 dates_smooth = np.array([timedelta(seconds=time) + start_date for time in time_seconds_smooth])
 
 # Convert smoothed time to years
