@@ -271,8 +271,8 @@ final_date = start_date + timedelta(seconds=final_time_seconds)
 fig, ax1 = plt.subplots(figsize=(12, 6))
 
 # Plot smoothed periapsis and apoapsis with thin, smooth lines
-ax1.plot(dates_smooth, periapsis_smooth, 'b-', label='Periapsis Altitude', linewidth=1)
-ax1.plot(dates_smooth, apoapsis_smooth, 'r-', label='Apoapsis Altitude', linewidth=1)
+ax1.plot(dates_smooth, periapsis, 'b-', label='Periapsis Altitude', linewidth=1)
+ax1.plot(dates_smooth, apoapsis, 'r-', label='Apoapsis Altitude', linewidth=1)
 
 ax1.set_xlabel('Date', fontsize=12)
 ax1.set_ylabel('Altitude [km]', fontsize=12)
