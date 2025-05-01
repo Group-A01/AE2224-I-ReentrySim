@@ -91,24 +91,26 @@ body_settings.add_empty_settings(satname)
 
 # Create aerodynamic coefficient interface settings
 reference_area_drag = (4*0.3*0.1+2*0.1*0.1)/4  # Average projection area of a 3U CubeSat
-def aerodynamic_force_coefficients(time):
-    reference_area = 0.1*np.sin(2*np.pi/4 *time)
-    drag_coefficient = 2 * reference_area  # Example calculation
-    return [drag_coefficient, 0.0, 0.0] # [CD, CY, CL]
-# drag_coefficient = 1.2
-# aero_coefficient_settings = environment_setup.aerodynamic_coefficients.constant(
-#     reference_area_drag, [drag_coefficient, 0.0, 0.0]
-# )
-aero_coefficient_settings = environment_setup.aerodynamic_coefficients.custom_aerodynamic_force_coefficients(
-    force_coefficient_function = aerodynamic_force_coefficients,
-    # independent_variable_names=["time"]
+drag_coefficient = 2 #coeffs closer to 2 might be more representative
+aero_coefficient_settings = environment_setup.aerodynamic_coefficients.constant(
+    reference_area_drag, [drag_coefficient, 0.0, 0.0]
 )
+# def aerodynamic_force_coefficients(time):
+#     reference_area = 0.1*np.sin(2*np.pi/4 *time)
+#     drag_coefficient = 2 * reference_area  # Example calculation
+#     return [drag_coefficient, 0.0, 0.0] # [CD, CY, CL]
+
+# aero_coefficient_settings = environment_setup.aerodynamic_coefficients.custom_aerodynamic_force_coefficients(
+#     force_coefficient_function = aerodynamic_force_coefficients,
+#     independent_variable_names=["time"]
+# )
 
 # Add the aerodynamic interface to the body settings
 body_settings.get(satname).aerodynamic_coefficient_settings = aero_coefficient_settings
 
 # Create radiation pressure settings
-reference_area_radiation = (4*0.3*0.1+2*0.1*0.1)/4  # Average projection area of a 3U CubeSat
+# reference_area_radiation = (4*0.3*0.1+2*0.1*0.1)/4  # Average projection area of a 3U CubeSat
+reference_area_radiation = 0.085 # [m] Average projection area of a 3U CubeSat
 radiation_pressure_coefficient = 1.2
 occulting_bodies_dict = dict()
 occulting_bodies_dict["Sun"] = ["Earth"]
@@ -373,8 +375,8 @@ fig, axs = plt.subplots(figsize=(12, 6))
 # axs.plot(time_smooth, periapsis_smooth, 'b-', label='Periapsis Altitude (Smoothed)', linewidth=2)
 # axs.plot(time_smooth, apoapsis_smooth, 'r-', label='Apoapsis Altitude (Smoothed)', linewidth=2)
 # Plot original data faintly for comparison
-axs.plot(dates, periapsis, 'b-', alpha=1, label='Periapsis (Raw)', linewidth=1)
-axs.plot(dates, apoapsis, 'r-', alpha=1, label='Apoapsis (Raw)', linewidth=1)
+axs.plot(dates[::86400/fixed_step_size], periapsis[::86400/fixed_step_size], 'b-', alpha=1, label='Periapsis (Raw)', linewidth=1)
+axs.plot(dates[::86400/fixed_step_size], apoapsis[::86400/fixed_step_size], 'r-', alpha=1, label='Apoapsis (Raw)', linewidth=1)
 #actual
 axs.plot(actual_dates, actual_periapsis, 'b-', alpha=1, label='Periapsis (Raw)', linewidth=1)
 axs.plot(actual_dates, actual_apoapsis, 'r-', alpha=1, label='Apoapsis (Raw)', linewidth=1)
