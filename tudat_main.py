@@ -47,10 +47,8 @@ def density_f(h, lon, lat, time):
     start_date = np.datetime64("2000-01-01T00:00")
     timedate = start_date + np.timedelta64(int(time), 's')
     # Use h in kilometers (pymsis expects km)
-    data = pymsis.calculate(timedate, lon, lat, h, geomagnetic_activity=-1, version=2.1)
+    data = pymsis.calculate(timedate, lon, lat, h/1000, geomagnetic_activity=-1, version=2.1)
     density = data[0, pymsis.Variable.MASS_DENSITY]
-    # Optional: Log for debugging (uncomment to verify density)
-    # print(f"Altitude: {h} km, Lon: {lon} deg, Lat: {lat} deg, Time: {timedate}, Density: {density} kg/m^3")
     return density
 
 body_settings.get("Earth").atmosphere_settings = environment_setup.atmosphere.custom_four_dimensional_constant_temperature(
@@ -58,6 +56,7 @@ body_settings.get("Earth").atmosphere_settings = environment_setup.atmosphere.cu
     const_temp,
     8.314 / 0.016,  # Scale height in km (typical for thermosphere)
     1.667)  # R/M for atomic oxygen (~519 J/(kg·K))
+
 # Create empty body settings for the satellite
 body_settings.add_empty_settings(satname)
 
@@ -123,8 +122,7 @@ print("2. Specify a custom end date (YYYY-MM-DD), from 13 November 2021")
 choice = input("Enter your choice (1 or 2): ")
 
 # Set simulation start epoch
-# print("Start date: {0}-{1}-{2}".format(year, month, day))
-start_date_str = input("Enter start date (YYYY-MM-DD): ")
+start_date_str = '2021-11-13'
 start_date = datetime.strptime(start_date_str, "%Y-%m-%d")
 simulation_start_epoch = DateTime(start_date.year, start_date.month, start_date.day).epoch()
 
@@ -159,7 +157,7 @@ dependent_variables_to_save = [
     propagation_setup.dependent_variable.apoapsis_altitude(satname, "Earth")
 ]
 
-# Create termination settings based on altitude (terminate when altitude <= 120 km)
+# Create termination settings based on altitude (terminate when altitude <= 200 km)
 altitude_variable = propagation_setup.dependent_variable.altitude(satname, "Earth")
 altitude_termination = propagation_setup.propagator.dependent_variable_termination(
     dependent_variable_settings=altitude_variable,
@@ -227,8 +225,9 @@ states_array = result2array(states)
 dep_vars = dynamics_simulator.propagation_results.dependent_variable_history
 dep_vars_array = result2array(dep_vars)
 
-# Extract data
-time_hours = (dep_vars_array[:, 0] - dep_vars_array[0, 0]) / 3600
+# Extract data (non-resampled, kept for reference)
+time_seconds = dep_vars_array[:, 0]
+time_hours = (time_seconds - time_seconds[0]) / 3600  # Relative time in hours
 periapsis = dep_vars_array[:, 16] / 1000  # Convert to km
 apoapsis = dep_vars_array[:, 17] / 1000   # Convert to km
 acceleration_norm_pm_sun = dep_vars_array[:, 10]
@@ -237,82 +236,92 @@ acceleration_norm_sh_earth = dep_vars_array[:, 12]
 acceleration_norm_aero_earth = dep_vars_array[:, 13]
 acceleration_norm_rp_sun = dep_vars_array[:, 14]
 
-# Smooth the data using a moving average (excluding aerodynamic acceleration)
-def moving_average(data, window_size):
-    return np.convolve(data, np.ones(window_size)/window_size, mode='valid')
+# Create a DataFrame
+data = pd.DataFrame({
+    'periapsis': periapsis,
+    'apoapsis': apoapsis,
+    'acc_pm_sun': acceleration_norm_pm_sun,
+    'acc_pm_moon': acceleration_norm_pm_moon,
+    'acc_sh_earth': acceleration_norm_sh_earth,
+    'acc_aero_earth': acceleration_norm_aero_earth,
+    'acc_rp_sun': acceleration_norm_rp_sun
+})
 
-window_size = 10  # Increased for smoother lines
-periapsis_smooth = moving_average(periapsis, window_size)
-apoapsis_smooth = moving_average(apoapsis, window_size)
-time_smooth = moving_average(time_hours, window_size)
+# Convert time_seconds to datetime index
+time_datetime = start_date + pd.to_timedelta(time_seconds - time_seconds[0], unit='s')
+data.index = time_datetime
 
-# Calculate the corresponding time indices for the smoothed data
-smoothed_length = len(periapsis_smooth)  # Length of smoothed arrays
-start_idx = (window_size - 1) // 2  # Center the smoothing window
-smooth_indices = np.arange(start_idx, start_idx + smoothed_length)
+# Find the first midnight (00:00) after start_date
+first_midnight = pd.Timestamp(start_date).ceil('D')
 
-# Extract the corresponding time seconds for the smoothed data
-time_seconds = dep_vars_array[:, 0] - dep_vars_array[0, 0]  # Time in seconds from start
-time_seconds_smooth = time_seconds[smooth_indices]
+# Create a custom time index: from start_date to first_midnight, then every 4 hours
+# First, include data up to first_midnight
+initial_data = data.loc[:first_midnight].resample('h').mean()  # Hourly until midnight
+# Then, resample from first_midnight onward every 4 hours
+post_midnight_data = data.loc[first_midnight:].resample('1h', origin=first_midnight).mean()
 
-# Convert smoothed time to dates
-start_date = datetime(start_date.year, start_date.month, start_date.day)  # Simulation start date
-dates_smooth = np.array([timedelta(seconds=time) + start_date for time in time_seconds_smooth])
+# Combine the two parts
+resampled_data = pd.concat([initial_data, post_midnight_data])
+resampled_data = resampled_data.loc[~resampled_data.index.duplicated(keep='first')]  # Remove duplicates
+resampled_dates = resampled_data.index
 
-# Convert smoothed time to years
-time_years_smooth = time_seconds_smooth / (365.25 * 24 * 3600) + year 
+# Calculate resampled time in hours (relative to start_date) for CSV
+resampled_time_seconds = (resampled_dates - start_date).total_seconds()
+resampled_time_hours = resampled_time_seconds / 3600
 
-# Slice original data to match smoothed data length for plotting
-acceleration_norm_aero_earth_sliced = acceleration_norm_aero_earth[smooth_indices]  # Use unsmoothed data
-
-# Calculate final simulation date
+# Calculate final simulation date (from original data, for reference)
 final_time_seconds = time_seconds[-1]
 final_date = start_date + timedelta(seconds=final_time_seconds)
 
-# Create figure with improved styling for altitude plot
+# Create figure for altitude plot (using resampled data)
 fig, ax1 = plt.subplots(figsize=(12, 6))
 
-# Plot smoothed periapsis and apoapsis with thin, smooth lines
-ax1.plot(dates_smooth, periapsis, 'b-', label='Periapsis Altitude', linewidth=1)
-ax1.plot(dates_smooth, apoapsis, 'r-', label='Apoapsis Altitude', linewidth=1)
+# Plot resampled periapsis and apoapsis
+ax1.plot(resampled_dates, resampled_data['periapsis'], 'b-', label='Periapsis Altitude', linewidth=1)
+ax1.plot(resampled_dates, resampled_data['apoapsis'], 'r-', label='Apoapsis Altitude', linewidth=1)
 
 ax1.set_xlabel('Date', fontsize=12)
 ax1.set_ylabel('Altitude [km]', fontsize=12)
 ax1.set_title(f'Apoapsis and Periapsis Altitudes of {satname} Over Time', fontsize=14, pad=20)
 ax1.grid(True, linestyle='--', alpha=0.7)
 ax1.legend(loc='upper left', fontsize=10)
-ax1.set_xlim([min(dates_smooth), max(dates_smooth)])
+ax1.set_xlim([min(resampled_dates), max(resampled_dates)])
 
 # Adjust y-axis limits for better visibility
-ax1.set_ylim([min(min(periapsis_smooth), min(apoapsis_smooth)) * 0.95, max(max(periapsis_smooth), max(apoapsis_smooth)) * 1.05])
+ax1.set_ylim([min(resampled_data['periapsis'].min(), resampled_data['apoapsis'].min()) * 0.95,
+              max(resampled_data['periapsis'].max(), resampled_data['apoapsis'].max()) * 1.05])
 
 # Add some styling
 plt.tight_layout()
 plt.savefig('results/C3/C3_altitude.png')
 
-# Create figure for aerodynamic acceleration (unsmoothed) with thin, smooth line
-plt.figure(figsize=(9, 5))
-plt.plot(dates_smooth, acceleration_norm_aero_earth_sliced, 'g-', label='Aerodynamic Earth Acceleration', linewidth=1)
-plt.xlim([min(dates_smooth), max(dates_smooth)])
-plt.xlabel('Date', fontsize=12)
-plt.ylabel('Acceleration Norm [m/s$^2$]', fontsize=12)
-plt.title(f'Aerodynamic Acceleration of {satname} Over Time', fontsize=14, pad=20)
-plt.legend(loc='upper right', fontsize=10)
-plt.yscale('log')
-plt.grid(True, linestyle='--', alpha=0.7)
+# Create figure for aerodynamic acceleration (using resampled data)
+fig, ax2 = plt.subplots(figsize=(9, 5))
+ax2.plot(resampled_dates, resampled_data['acc_aero_earth'], 'g-', label='Aerodynamic Earth Acceleration', linewidth=1)
+ax2.set_xlim([min(resampled_dates), max(resampled_dates)])
+ax2.set_xlabel('Date', fontsize=12)
+ax2.set_ylabel('Acceleration Norm [m/s$^2$]', fontsize=12)
+ax2.set_title(f'Aerodynamic Acceleration of {satname} Over Time', fontsize=14, pad=20)
+ax2.legend(loc='upper right', fontsize=10)
+ax2.set_yscale('log')
+ax2.grid(True, linestyle='--', alpha=0.7)
 plt.tight_layout()
 plt.savefig('results/C3/C3_drag_acceleration.png')
 
 plt.show()
 
-# Store all extracted variables in an np array (using original full-length data)
-data = np.vstack([dates_smooth, apoapsis, periapsis, acceleration_norm_aero_earth])
-data = np.transpose(data)
-headr = "Time (Hours), Apoapsis, Periapsis, Acceleration Norm Aero Earth"
+# Store resampled data in an np array
+data_resampled = np.vstack([
+    resampled_time_hours,  # Time in hours
+    resampled_data['apoapsis'],
+    resampled_data['periapsis'],
+    resampled_data['acc_aero_earth']
+]).T  # Transpose to match [time, apoapsis, periapsis, acc_aero_earth]
 
-# Store the data array in a csv with header
-print("Writing to file: {0}.csv...".format(satname))
-np.savetxt("results/C3/"+satname + ".csv", data, header=headr, delimiter=',')
+# Store the resampled data array in a CSV with header
+headr = "Time (Hours), Apoapsis, Periapsis, Acceleration Norm Aero Earth"
+print(f"Writing to file: {satname}.csv...")
+np.savetxt(f"results/C3/{satname}.csv", data_resampled, header=headr, delimiter=',', fmt='%.6f')
 print("Done!")
 print(f"Final simulation time: {time_hours[-1]:.2f} hours")
 print(f"Final simulation date: {final_date.strftime('%Y-%m-%d')}")
