@@ -2,12 +2,12 @@ import numpy as np
 import pandas as pd
 from pathlib import Path
 
-def TLE_extract():
+def TLE_extract(file_path):
     mu_earth = 398600.4418  # km^3/s^2
     seconds_per_day = 86400
 
     # Load TLE file
-    tle_file_path = Path("Delfi_C3_TLEs_12112021_13112023")
+    tle_file_path = Path(file_path)
     tle_lines = tle_file_path.read_text().splitlines()
 
     # Extract TLEs
@@ -67,7 +67,7 @@ def TLE_extract():
 
 if __name__ == "__main__":
     import matplotlib.pyplot as plt
-    per, ap, time = TLE_extract()
+    per, ap, time = TLE_extract('TLEs Satellites\Delfi-C3_TLE')
     plt.plot(time, per, label='Periapsis')
     plt.plot(time, ap, label='Apoapsis')
     plt.xlabel('Hours since 2021-11-12')

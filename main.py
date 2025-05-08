@@ -29,8 +29,8 @@ def setup_body_settings(satname, reference_area, drag_coefficient, radiation_pre
             timedate = start_date + np.timedelta64(int(time), 's')
             data = pymsis.calculate(timedate, lon, lat, h/1000, geomagnetic_activity=-1, version=2.1)
             return data[0, pymsis.Variable.MASS_DENSITY]
-        body_settings.get("Earth").atmosphere_settings = environment_setup.atmosphere.custom_four_dimensional(
-            density_f, constant_temperature=const_temp, specific_gas_constant=8.314 / 0.016, ratio_specific_heats=1.667
+        body_settings.get("Earth").atmosphere_settings = environment_setup.atmosphere.custom_four_dimensional_constant_temperature(
+            density_f, const_temp, 8.314 / 0.016, 1.667
         )
     elif atm_model == "NRLMSISE-00":
         body_settings.get("Earth").atmosphere_settings = environment_setup.atmosphere.nrlmsise00()
@@ -162,7 +162,7 @@ def main():
                 "1 51074U 22002CU  22018.63976129  .00005793  00000-0  31877-3 0  9992",
                 "2 51074  97.5269  88.2628 0013258 250.6199 109.3600 15.14370988   760"
             ),
-            "start_last2": "2024-01-06"
+            "start_last2": "2022-01-18"
         },
         "Delfi-n3Xt": {
             "mass": 2.8,
@@ -221,11 +221,26 @@ def main():
         terminate_exactly_on_final_condition=False
     )
 
-    if duration_choice == "2":
-        end_date = start_date + timedelta(days=2*365)
-        simulation_end_epoch = DateTime(end_date.year, end_date.month, end_date.day).epoch()
-        termination_condition = propagation_setup.propagator.time_termination(simulation_end_epoch)
-        print(f"Simulating from {start_date.strftime('%Y-%m-%d')} to {end_date.strftime('%Y-%m-%d')}...")
+    if duration_choice == "2" and term_choice == "1":
+        termination_condition = altitude_termination
+        print("Simulating until altitude reaches 200 km...")
+    elif duration_choice == "2" and term_choice == "2":
+        while True:
+            try:
+                end_date_str = input("Enter end date for last 2 years simulation (YYYY-MM-DD): ").strip()
+                end_date = datetime.strptime(end_date_str, "%Y-%m-%d")
+                simulation_end_epoch = DateTime(end_date.year, end_date.month, end_date.day).epoch()
+                if simulation_end_epoch <= simulation_start_epoch:
+                    print(f"End date must be after {start_date.strftime('%Y-%m-%d')}. Try again.")
+                    continue
+                time_termination = propagation_setup.propagator.time_termination(simulation_end_epoch)
+                termination_condition = propagation_setup.propagator.hybrid_termination(
+                    [altitude_termination, time_termination], fulfill_single_condition=True
+                )
+                print(f"Simulating from {start_date.strftime('%Y-%m-%d')} to {end_date_str} or 200 km altitude, whichever comes first...")
+                break
+            except ValueError:
+                print("Invalid date format. Please use YYYY-MM-DD (e.g., 2024-12-31).")
     elif term_choice == "1":
         termination_condition = altitude_termination
         print("Simulating until altitude reaches 200 km...")
