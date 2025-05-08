@@ -426,7 +426,7 @@ def main(tle_data_n3Xt):
     output_path = f"results/{satname}/{satname}_{atm_model.replace(' ', '_')}.csv"
     try:
         print(f"Writing to file: {output_path}...")
-        np.savetxt(output_path, data_resampled, header=header, delimiter=',', fmt='%.6f')
+        np.savetxt(output_path, data_resampled, header=header, delimiter=',', fmt='%.5e')
         print("Done!")
     except Exception as e:
         print(f"Error saving CSV: {e}")
