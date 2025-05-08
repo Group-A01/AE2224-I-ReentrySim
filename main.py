@@ -9,6 +9,7 @@ from tudatpy.astro.time_conversion import DateTime
 from tudatpy.util import result2array
 import pymsis
 from alive_progress import alive_bar
+from Data_extract import TLE_extract
 import os
 
 def setup_body_settings(satname, reference_area, drag_coefficient, radiation_pressure_coefficient, atm_model):
@@ -23,15 +24,23 @@ def setup_body_settings(satname, reference_area, drag_coefficient, radiation_pre
 
     # Configure Earth's atmosphere
     if atm_model == "MSIS":
-        const_temp = 1000
+        const_temp = 1000  # Realistic thermospheric temperature in K
+
         def density_f(h, lon, lat, time):
+            # Time is seconds since simulation start (2021-11-13)
             start_date = np.datetime64("2000-01-01T00:00")
             timedate = start_date + np.timedelta64(int(time), 's')
+            # Use h in kilometers (pymsis expects km)
             data = pymsis.calculate(timedate, lon, lat, h/1000, geomagnetic_activity=-1, version=2.1)
-            return data[0, pymsis.Variable.MASS_DENSITY]
+            density = data[0, pymsis.Variable.MASS_DENSITY]
+            return density
+
         body_settings.get("Earth").atmosphere_settings = environment_setup.atmosphere.custom_four_dimensional_constant_temperature(
-            density_f, const_temp, 8.314 / 0.016, 1.667
-        )
+            density_f,
+            const_temp,
+            8.314 / 0.016,  # Scale height in km (typical for thermosphere)
+            1.667)  # R/M for atomic oxygen (~519 J/(kg·K))
+
     elif atm_model == "NRLMSISE-00":
         body_settings.get("Earth").atmosphere_settings = environment_setup.atmosphere.nrlmsise00()
     elif atm_model == "Exponential":
@@ -368,6 +377,8 @@ def main():
         plt.style.use('seaborn-v0_8')
     except:
         plt.style.use('ggplot')
+    
+    actual_periapsis, actual_apoapsis, actial_hours = TLE_extract("Delfi_C3_TLEs_12112021_13112023")
 
     fig, ax1 = plt.subplots(figsize=(12, 6))
     ax1.plot(resampled_dates, resampled_data['periapsis'], 'b-', label='Periapsis Altitude', linewidth=1)
