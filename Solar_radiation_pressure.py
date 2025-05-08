@@ -91,3 +91,24 @@ for value in flux:
     accelaration = 1.3 * value / (2.99*10**8) * 0.22 / 2.8
     accelarations.append(accelaration)
 array_accelarations = np.array(accelarations)
+
+import matplotlib.pyplot as plt
+import pandas as pd
+import numpy as np
+import matplotlib.dates as mdates
+
+# Generate dates based on flux length, assuming three measurements per day
+start_date = pd.to_datetime(dates[0], format='%Y%m%d')
+date_range = pd.date_range(start=start_date, periods=len(array_accelarations), freq='8H')
+
+# Plot the solar radiation pressure
+plt.figure(figsize=(12, 6))
+plt.plot(date_range, array_accelarations, label='Solar Radiation Pressure', color='b', linewidth=1)
+plt.xlabel('Date')
+plt.ylabel('Acceleration (m/s²)')
+plt.title('Solar Radiation Pressure Over Time')
+plt.grid(True)
+plt.legend()
+plt.gca().xaxis.set_major_formatter(mdates.DateFormatter('%Y-%m'))
+plt.xticks(rotation=45)
+plt.show()

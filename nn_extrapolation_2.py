@@ -15,12 +15,12 @@ except FileNotFoundError:
 
 # Verify expected columns
 expected_columns = ['days', 'dB', 'SN', 'Ap']
+if not all(col in data.columns for col in expected_columns):
+    print(f"Error: Dataset must contain columns {expected_columns}")
+    exit(1)
 
 # Create a date column starting from Jan 1, 1932
 data['Date'] = pd.to_datetime('1932-01-01') + pd.to_timedelta(data['days'] - 1, unit='D')
-
-# Handle outliers in Ap (cap extreme values)
-# data['Ap'] = data['Ap'].clip(upper=300)  # Cap Ap at 300 to handle extreme outliers
 
 # Aggregate historical data to monthly averages to reduce noise
 data['YearMonth'] = data['Date'].dt.to_period('M')
@@ -45,49 +45,67 @@ model.add_seasonality(name='solar_cycle', period=11 * 365.25, fourier_order=10) 
 model.add_seasonality(name='yearly', period=365.25, fourier_order=5)  # Yearly seasonality
 model.fit(prophet_df)
 
-# Generate future dates for prediction (days 34076 to 39926, monthly)
-start_day = 34076
-end_day = 39926
-start_date = pd.to_datetime('1932-01-01') + pd.to_timedelta(start_day - 1, unit='D')
-end_date = pd.to_datetime('1932-01-01') + pd.to_timedelta(end_day - 1, unit='D')
+# Determine the last historical date
+last_historical_date = historical_data['Date'].max()
+print(f"Last historical date: {last_historical_date}")
 
-# Create monthly future dates
+# Generate future dates for prediction (from the day after the last historical date to Dec 1, 2030)
+start_date = last_historical_date + pd.Timedelta(days=1)
+end_date = pd.to_datetime('2030-12-01')
 future_dates = pd.date_range(start=start_date, end=end_date, freq='MS')  # MS = Month Start
 future_df = pd.DataFrame({'ds': future_dates})
 
-# Forecast
+# Forecast only for future dates
 forecast = model.predict(future_df)
 
-# Plot results (focus on the last 20 years of history plus predictions)
+# Extract Ap values for 2000–2030
+# Historical data (monthly averages)
+historical_ap = monthly_data[['Date', 'Ap']].copy()
+historical_ap = historical_ap[
+    (historical_ap['Date'] >= pd.to_datetime('2000-01-01')) &
+    (historical_ap['Date'] <= pd.to_datetime('2030-12-01'))
+].rename(columns={'Date': 'ds', 'Ap': 'Ap'})
+
+# Predicted data (only for unknown dates)
+predicted_ap = forecast[['ds', 'yhat']].copy()
+predicted_ap = predicted_ap[
+    (predicted_ap['ds'] >= pd.to_datetime('2000-01-01')) &
+    (predicted_ap['ds'] <= pd.to_datetime('2030-12-01'))
+].rename(columns={'yhat': 'Ap'})
+
+# Combine historical and predicted data
+# Historical data takes precedence; predictions only for unknown dates
+combined_ap = pd.concat([historical_ap, predicted_ap])
+combined_ap = combined_ap.sort_values('ds').drop_duplicates(subset='ds', keep='first')
+
+# Filter to keep only first-of-the-month dates
+combined_ap = combined_ap[combined_ap['ds'].dt.day == 1]
+
+# Remove any rows with missing Ap values
+combined_ap = combined_ap.dropna(subset=['Ap'])
+
+# Save to CSV
+output_file = 'ap_2000_2030.csv'
+combined_ap[['ds', 'Ap']].to_csv(output_file, index=False)
+print(f"Ap values from 2000 to 2030 saved to '{output_file}'")
+
+# Plot results (focus on 2000–2030)
 plt.figure(figsize=(12, 6))
-# Plot historical data (last 20 years)
-plot_start_date = pd.to_datetime('1932-01-01')
-historical_plot = prophet_df[prophet_df['ds'] >= plot_start_date]
-plt.plot(historical_plot['ds'], historical_plot['y'], label='Historical Ap (Monthly Avg)', color='blue')
-
-# Plot predictions
-plt.plot(forecast['ds'], forecast['yhat'], label='Predicted Ap', color='red', linestyle='dashed')
-plt.fill_between(forecast['ds'], forecast['yhat_lower'], forecast['yhat_upper'], color='red', alpha=0.2)
-
+plt.plot(historical_ap['ds'], historical_ap['Ap'], label='Historical Ap (Monthly Avg)', color='blue')
+plt.plot(predicted_ap['ds'], predicted_ap['Ap'], label='Predicted Ap', color='red', linestyle='dashed')
+plt.fill_between(predicted_ap['ds'], 
+                 forecast.loc[forecast['ds'].isin(predicted_ap['ds']), 'yhat_lower'], 
+                 forecast.loc[forecast['ds'].isin(predicted_ap['ds']), 'yhat_upper'], 
+                 color='red', alpha=0.2)
 plt.xlabel('Date')
 plt.ylabel('Ap Value')
-plt.title('Ap Historical and Predicted Values (Prophet Model)')
+plt.title('Ap Historical and Predicted Values (2000–2030)')
 plt.legend()
 plt.grid(True)
 plt.show()
 
-# Save predictions
-predictions = pd.DataFrame({
-    'Date': forecast['ds'],
-    'Predicted_Ap': forecast['yhat'],
-    'Lower_Bound': forecast['yhat_lower'],
-    'Upper_Bound': forecast['yhat_upper']
-})
-predictions.to_csv('ap_predictions.csv', index=False)
-print("Predictions saved to 'ap_predictions.csv'")
-
-# Calculate RMSE for monthly predictions (if ground truth exists)
-monthly_data_validation = data[(data['days'] >= 34076) & (data['days'] <= 39926)].copy()
+# Calculate RMSE for monthly predictions (if ground truth exists beyond day 34046)
+monthly_data_validation = data[(data['days'] > 34046) & (data['days'] <= 39926)].copy()
 if not monthly_data_validation.empty:
     monthly_data_validation['Date'] = pd.to_datetime('1932-01-01') + pd.to_timedelta(monthly_data_validation['days'] - 1, unit='D')
     monthly_data_validation['YearMonth'] = monthly_data_validation['Date'].dt.to_period('M')
