@@ -9,6 +9,7 @@ from tudatpy.astro.time_conversion import DateTime
 from tudatpy.util import result2array
 import pymsis
 from alive_progress import alive_bar
+from Data_extract import TLE_extract
 import os
 import urllib.request
 
