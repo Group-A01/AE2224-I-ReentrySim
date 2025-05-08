@@ -378,11 +378,12 @@ def main():
     except:
         plt.style.use('ggplot')
     
-    actual_periapsis, actual_apoapsis, actial_hours = TLE_extract("Delfi_C3_TLEs_12112021_13112023")
+    actual_periapsis, actual_apoapsis, actial_hours = TLE_extract("TLEs_Satellites/"+satname+"_TLE")
 
     fig, ax1 = plt.subplots(figsize=(12, 6))
     ax1.plot(resampled_dates, resampled_data['periapsis'], 'b-', label='Periapsis Altitude', linewidth=1)
     ax1.plot(resampled_dates, resampled_data['apoapsis'], 'r-', label='Apoapsis Altitude', linewidth=1)
+    ax1.plot()
     ax1.set_xlabel('Date', fontsize=12)
     ax1.set_ylabel('Altitude [km]', fontsize=12)
     ax1.set_title(f'Apoapsis and Periapsis Altitudes of {satname} (Atm: {atm_model})', fontsize=14, pad=20)

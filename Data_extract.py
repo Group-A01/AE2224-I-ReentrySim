@@ -44,9 +44,14 @@ def TLE_extract(path):
     periapsis_array = np.subtract(np.array(periapsis_list), 6378)
     apoapsis_array = np.subtract(np.array(apoapsis_list), 6378)
 
+    # print(tle_list[0][0][17:32])
+    start_date = convert_to_date(tle_list[0][0][17:32])
+    end_date = convert_to_date(tle_list[-1][0][17:32])
+
     # Generate datetime array
-    start_datetime = pd.to_datetime("2021-11-12 00:00:00")
-    end_datetime = pd.to_datetime("2023-11-13 00:00:00")
+    start_datetime = pd.to_datetime(start_date)
+    end_datetime = pd.to_datetime(end_date)
+    # print(start_datetime, end_datetime)
     n_tles = len(periapsis_array)
 
     datetime_array = pd.date_range(start=start_datetime, end=end_datetime, periods=n_tles)
@@ -63,13 +68,24 @@ def TLE_extract(path):
     })
     # df.to_csv('tle_data.csv', index=False)
 
-    return periapsis_array, apoapsis_array, hours_array_np
+    return periapsis_array, apoapsis_array, hours_array_np, datetime_array
+
+def convert_to_date(input):
+    # print(input[:3])
+    year = "20"+input[1:3]+"-01-01"
+    num = float(input[3::])-1
+    days = int(num)
+    date = np.datetime64(year) + np.timedelta64(int(num*24*60*60), "s")
+    return date
+
 
 if __name__ == "__main__":
     import matplotlib.pyplot as plt
-    per, ap, time = TLE_extract('TLEs Satellites\Delfi-n3Xt_TLE')
-    plt.plot(time, per, label='Periapsis')
-    plt.plot(time, ap, label='Apoapsis')
+    # print(convert_to_date())
+
+    per, ap, time, datetime = TLE_extract('TLEs_Satellites/Delfi-C3_TLE')
+    plt.plot(datetime, per, label='Periapsis')
+    plt.plot(datetime, ap, label='Apoapsis')
     plt.xlabel('Hours since 2021-11-12')
     plt.ylabel('Altitude (km)')
     plt.legend()
