@@ -2,12 +2,12 @@ import numpy as np
 import pandas as pd
 from pathlib import Path
 
-def TLE_extract():
+def TLE_extract(path):
     mu_earth = 398600.4418  # km^3/s^2
     seconds_per_day = 86400
 
     # Load TLE file
-    tle_file_path = Path("Delfi_C3_TLEs_12112021_13112023")
+    tle_file_path = Path(path)
     tle_lines = tle_file_path.read_text().splitlines()
 
     # Extract TLEs
@@ -61,13 +61,13 @@ def TLE_extract():
         'Periapsis_altitude_km': periapsis_array,
         'Apoapsis_altitude_km': apoapsis_array
     })
-    df.to_csv('tle_data.csv', index=False)
+    # df.to_csv('tle_data.csv', index=False)
 
     return periapsis_array, apoapsis_array, hours_array_np
 
 if __name__ == "__main__":
     import matplotlib.pyplot as plt
-    per, ap, time = TLE_extract()
+    per, ap, time = TLE_extract("Delfi_C3_TLEs_12112021_13112023")
     plt.plot(time, per, label='Periapsis')
     plt.plot(time, ap, label='Apoapsis')
     plt.xlabel('Hours since 2021-11-12')
