@@ -9,8 +9,21 @@ from tudatpy.astro.time_conversion import DateTime
 from tudatpy.util import result2array
 import pymsis
 from alive_progress import alive_bar
-from Data_extract import TLE_extract
 import os
+import urllib.request
+
+def fetch_tle_data():
+    """Fetch TLE data for Delfi-n3Xt from Celestrak."""
+    target_url = "https://celestrak.org/NORAD/elements/gp.php?CATNR=39428"
+    try:
+        with urllib.request.urlopen(target_url) as response:
+            data = response.read().decode('utf-8')
+            lines = data.splitlines()
+            for i in range(len(lines) - 1):
+                if lines[i].startswith("1 39428U"):
+                    return (lines[i], lines[i + 1])
+    except Exception as e:
+        raise RuntimeError(f"Failed to fetch TLE data: {e}")
 
 def setup_body_settings(satname, reference_area, drag_coefficient, radiation_pressure_coefficient, atm_model):
     """Set up celestial and satellite body settings with environment configurations."""
@@ -27,20 +40,19 @@ def setup_body_settings(satname, reference_area, drag_coefficient, radiation_pre
         const_temp = 1000  # Realistic thermospheric temperature in K
 
         def density_f(h, lon, lat, time):
-            # Time is seconds since simulation start (2021-11-13)
+            # Time is seconds since simulation start
             start_date = np.datetime64("2000-01-01T00:00")
             timedate = start_date + np.timedelta64(int(time), 's')
-            # Use h in kilometers (pymsis expects km)
-            data = pymsis.calculate(timedate, lon, lat, h/1000, geomagnetic_activity=-1, version=2.1)
+            data = pymsis.calculate(timedate, lon, lat, h / 1000, geomagnetic_activity=-1, version=2.0)
             density = data[0, pymsis.Variable.MASS_DENSITY]
             return density
 
         body_settings.get("Earth").atmosphere_settings = environment_setup.atmosphere.custom_four_dimensional_constant_temperature(
             density_f,
             const_temp,
-            8.314 / 0.016,  # Scale height in km (typical for thermosphere)
-            1.667)  # R/M for atomic oxygen (~519 J/(kg·K))
-
+            8.314 / 0.016,  # Scale height in km
+            1.667  # R/M for atomic oxygen
+        )
     elif atm_model == "NRLMSISE-00":
         body_settings.get("Earth").atmosphere_settings = environment_setup.atmosphere.nrlmsise00()
     elif atm_model == "Exponential":
@@ -81,7 +93,7 @@ def setup_accelerations(satname):
     }
     return accelerations_settings
 
-def main():
+def main(tle_data_n3Xt):
     """Main function to run the satellite orbit simulation."""
     # Create output directories
     satellites = ["Delfi-C3", "Delfi-PQ", "Delfi-n3Xt"]
@@ -106,7 +118,7 @@ def main():
 
     # User input for atmospheric model
     print("\nAvailable Atmospheric Models:")
-    print("1. MSIS (NRLMSISE-2.1 via pymsis)\n2. NRLMSISE-00\n3. Exponential\n4. US76")
+    print("1. MSIS (NRLMSISE-2.0 via pymsis)\n2. NRLMSISE-00\n3. Exponential\n4. US76")
     while True:
         atm_choice = input("Enter your choice (1-4, or 'q' to quit): ").strip().lower()
         if atm_choice == 'q':
@@ -145,8 +157,8 @@ def main():
     satellite_params = {
         "Delfi-C3": {
             "mass": 2.2,
-            "reference_area": (4*0.3*0.1 + 2*0.1*0.1) / 4,
-            "drag_coefficient": 1.2,
+            "reference_area": (4 * 0.3 * 0.1 + 2 * 0.1 * 0.1) / 4,
+            "drag_coeefficient": 1.2,
             "tle_initial": (
                 "1 32789U 07021G   08119.60740078 -.00000054  00000-0  00000+0 0  9999",
                 "2 32789 098.0082 179.6267 0015321 307.2977 051.0656 14.81417433    68"
@@ -160,7 +172,7 @@ def main():
         },
         "Delfi-PQ": {
             "mass": 0.6,
-            "reference_area": (4*0.1*0.1 + 2*0.1*0.1) / 4,
+            "reference_area": (4 * 0.1 * 0.1 + 2 * 0.1 * 0.1) / 4,
             "drag_coefficient": 1.2,
             "tle_initial": (
                 "1 51074U 22002CU  22018.63976129  .00005793  00000-0  31877-3 0  9992",
@@ -175,17 +187,14 @@ def main():
         },
         "Delfi-n3Xt": {
             "mass": 2.8,
-            "reference_area": (4*0.35*0.1 + 2*0.1*0.1) / 4,
+            "reference_area": (4 * 0.35 * 0.1 + 2 * 0.1 * 0.1) / 4,
             "drag_coefficient": 1.2,
             "tle_initial": (
                 "1 39428U 13066N   13326.98735140  .00000434  00000-0  85570-4 0  9994",
                 "2 39428 097.7885 039.5438 0131608 184.9556 175.0377 14.61934043   196"
             ),
             "start_initial": "2013-11-22",
-            "tle_last2": (
-                "1 39428U 13066N   23124.34398081  .00005840  00000-0  84748-3 0  9991",
-                "2 39428  97.8334  50.7474 0110770 331.1489  28.3622 14.72236346505689"
-            ),
+            "tle_last2": tle_data_n3Xt,
             "start_last2": "2023-05-04"
         }
     }
@@ -207,7 +216,7 @@ def main():
             print(f"Selected: Last 2 years for {satname} starting from {params['start_last2']}")
 
         simulation_start_epoch = DateTime(start_date.year, start_date.month, start_date.day).epoch()
-        delfi_tle = environment.Tle(tle_data[0], tle_data[1])
+        delfi_tle = environment.Tle(*tle_data)
         delfi_ephemeris = environment.TleEphemeris("Earth", "J2000", delfi_tle, False)
         initial_state = delfi_ephemeris.cartesian_state(simulation_start_epoch)
     except Exception as e:
@@ -246,7 +255,7 @@ def main():
                 termination_condition = propagation_setup.propagator.hybrid_termination(
                     [altitude_termination, time_termination], fulfill_single_condition=True
                 )
-                print(f"Simulating from {start_date.strftime('%Y-%m-%d')} to {end_date_str} or 200 km altitude, whichever comes first...")
+                print(f"Simulating from {start_date.strftime('%Y-%m-%d')} to {end_date_str} or 200 km altitude...")
                 break
             except ValueError:
                 print("Invalid date format. Please use YYYY-MM-DD (e.g., 2024-12-31).")
@@ -266,7 +275,7 @@ def main():
                 termination_condition = propagation_setup.propagator.hybrid_termination(
                     [altitude_termination, time_termination], fulfill_single_condition=True
                 )
-                print(f"Simulating until {end_date_str} or 200 km altitude, whichever comes first...")
+                print(f"Simulating until {end_date_str} or 200 km altitude...")
                 break
             except ValueError:
                 print("Invalid date format. Please use YYYY-MM-DD (e.g., 2024-12-31).")
@@ -338,18 +347,12 @@ def main():
     time_hours = (time_seconds - time_seconds[0]) / 3600
     periapsis = dep_vars_array[:, 16] / 1000
     apoapsis = dep_vars_array[:, 17] / 1000
-    acceleration_norm_pm_sun = dep_vars_array[:, 10]
-    acceleration_norm_pm_moon = dep_vars_array[:, 11]
-    acceleration_norm_pm_jupiter = dep_vars_array[:, 18]
-    acceleration_norm_sh_earth = dep_vars_array[:, 12]
     acceleration_norm_aero_earth = dep_vars_array[:, 13]
-    acceleration_norm_rp_sun = dep_vars_array[:, 14]
 
     data = pd.DataFrame({
-        'periapsis': periapsis, 'apoapsis': apoapsis, 'acc_pm_sun': acceleration_norm_pm_sun,
-        'acc_pm_moon': acceleration_norm_pm_moon, 'acc_sh_earth': acceleration_norm_sh_earth,
-        'acc_aero_earth': acceleration_norm_aero_earth, 'acc_rp_sun': acceleration_norm_rp_sun,
-        'acc_pm_jupiter': acceleration_norm_pm_jupiter
+        'periapsis': periapsis,
+        'apoapsis': apoapsis,
+        'acc_aero_earth': acceleration_norm_aero_earth
     })
 
     time_datetime = start_date + pd.to_timedelta(time_seconds - time_seconds[0], unit='s')
@@ -372,13 +375,7 @@ def main():
     final_date = start_date + timedelta(seconds=time_seconds[-1])
 
     # Plotting
-    # Note: Using 'seaborn-v0_8' or 'ggplot' as a fallback. Install seaborn (`pip install seaborn`) for full Seaborn styles.
-    try:
-        plt.style.use('seaborn-v0_8')
-    except:
-        plt.style.use('ggplot')
-    
-    actual_periapsis, actual_apoapsis, actial_hours = TLE_extract("Delfi_C3_TLEs_12112021_13112023")
+    plt.style.use('ggplot')
 
     fig, ax1 = plt.subplots(figsize=(12, 6))
     ax1.plot(resampled_dates, resampled_data['periapsis'], 'b-', label='Periapsis Altitude', linewidth=1)
@@ -413,7 +410,7 @@ def main():
     # Save data to CSV
     data_resampled = np.vstack([resampled_time_hours, resampled_data['apoapsis'], resampled_data['periapsis'],
                                 resampled_data['acc_aero_earth']]).T
-    header = "Time (Hours), Apoapsis, Periapsis, Acceleration Norm Aero Earth"
+    header="Time (Hours), Apoapsis, Periapsis, Acceleration Norm Aero Earth"
     output_path = f"results/{satname}/{satname}_{atm_model.replace(' ', '_')}.csv"
     try:
         print(f"Writing to file: {output_path}...")
@@ -426,4 +423,6 @@ def main():
     print(f"Final simulation date: {final_date.strftime('%Y-%m-%d')}")
 
 if __name__ == "__main__":
-    main()
+    tle_data_n3Xt = fetch_tle_data()
+    print(f'The TLE of n3Xt is {tle_data_n3Xt}')
+    main(tle_data_n3Xt)
