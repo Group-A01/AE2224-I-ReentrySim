@@ -9,7 +9,7 @@ from tudatpy.astro.time_conversion import DateTime
 from tudatpy.util import result2array
 import pymsis
 from alive_progress import alive_bar
-from Data_extract import TLE_extract
+from Data_extract import TLE_extract, convert_to_date
 import os
 import urllib.request
 
@@ -23,6 +23,7 @@ def fetch_tle_data():
             for i in range(len(lines) - 1):
                 if lines[i].startswith("1 39428U"):
                     return (lines[i], lines[i + 1])
+            
     except Exception as e:
         raise RuntimeError(f"Failed to fetch TLE data: {e}")
 
@@ -159,7 +160,7 @@ def main(tle_data_n3Xt):
         "Delfi-C3": {
             "mass": 2.2,
             "reference_area": (4 * 0.3 * 0.1 + 2 * 0.1 * 0.1) / 4,
-            "drag_coeefficient": 1.2,
+            "drag_coefficient": 1.2,
             "tle_initial": (
                 "1 32789U 07021G   08119.60740078 -.00000054  00000-0  00000+0 0  9999",
                 "2 32789 098.0082 179.6267 0015321 307.2977 051.0656 14.81417433    68"
@@ -196,7 +197,7 @@ def main(tle_data_n3Xt):
             ),
             "start_initial": "2013-11-22",
             "tle_last2": tle_data_n3Xt,
-            "start_last2": "2023-05-04"
+            "start_last2": str(convert_to_date(tle_data_n3Xt[0][17:32]))[:10]
         }
     }
 
@@ -290,36 +291,36 @@ def main(tle_data_n3Xt):
     )
 
     dependent_variables_to_save = [
-        propagation_setup.dependent_variable.total_acceleration(satname),
-        propagation_setup.dependent_variable.keplerian_state(satname, "Earth"),
-        propagation_setup.dependent_variable.single_acceleration_norm(
-            propagation_setup.acceleration.point_mass_gravity_type, satname, "Sun"
-        ),
-        propagation_setup.dependent_variable.single_acceleration_norm(
-            propagation_setup.acceleration.point_mass_gravity_type, satname, "Moon"
-        ),
-        propagation_setup.dependent_variable.single_acceleration_norm(
-            propagation_setup.acceleration.spherical_harmonic_gravity_type, satname, "Earth"
-        ),
+        #propagation_setup.dependent_variable.total_acceleration(satname),
+        #propagation_setup.dependent_variable.keplerian_state(satname, "Earth"),
+        #propagation_setup.dependent_variable.single_acceleration_norm(
+            #propagation_setup.acceleration.point_mass_gravity_type, satname, "Sun"
+        #),
+        #propagation_setup.dependent_variable.single_acceleration_norm(
+        #     propagation_setup.acceleration.point_mass_gravity_type, satname, "Moon"
+        # ),
+        # propagation_setup.dependent_variable.single_acceleration_norm(
+        #     propagation_setup.acceleration.spherical_harmonic_gravity_type, satname, "Earth"
+        # ),
         propagation_setup.dependent_variable.single_acceleration_norm(
             propagation_setup.acceleration.aerodynamic_type, satname, "Earth"
         ),
-        propagation_setup.dependent_variable.single_acceleration_norm(
-            propagation_setup.acceleration.radiation_pressure_type, satname, "Sun"
-        ),
-        propagation_setup.dependent_variable.altitude(satname, "Earth"),
+        # propagation_setup.dependent_variable.single_acceleration_norm(
+        #     propagation_setup.acceleration.radiation_pressure_type, satname, "Sun"
+        # ),
+        #propagation_setup.dependent_variable.altitude(satname, "Earth"),
         propagation_setup.dependent_variable.periapsis_altitude(satname, "Earth"),
         propagation_setup.dependent_variable.apoapsis_altitude(satname, "Earth"),
-        propagation_setup.dependent_variable.single_acceleration_norm(
-            propagation_setup.acceleration.point_mass_gravity_type, satname, "Jupiter"
-        )
+        # propagation_setup.dependent_variable.single_acceleration_norm(
+        #     propagation_setup.acceleration.point_mass_gravity_type, satname, "Jupiter"
+        # )
     ]
 
     integrator_settings = propagation_setup.integrator.runge_kutta_variable_step(
         initial_time_step=60.0,
         coefficient_set=propagation_setup.integrator.CoefficientSets.rkf_45,
         step_size_control_settings=propagation_setup.integrator.step_size_control_elementwise_scalar_tolerance(1.0E-10, 1.0E-10),
-        step_size_validation_settings=propagation_setup.integrator.step_size_validation(0.001, 1000.0)
+        step_size_validation_settings=propagation_setup.integrator.step_size_validation(1, 1000.0)
     )
 
     propagator_settings = propagation_setup.propagator.translational(
@@ -346,9 +347,9 @@ def main(tle_data_n3Xt):
 
     time_seconds = dep_vars_array[:, 0]
     time_hours = (time_seconds - time_seconds[0]) / 3600
-    periapsis = dep_vars_array[:, 16] / 1000
-    apoapsis = dep_vars_array[:, 17] / 1000
-    acceleration_norm_aero_earth = dep_vars_array[:, 13]
+    periapsis = dep_vars_array[:, 2] / 1000
+    apoapsis = dep_vars_array[:, 3] / 1000
+    acceleration_norm_aero_earth = dep_vars_array[:, 1]
 
     data = pd.DataFrame({
         'periapsis': periapsis,
