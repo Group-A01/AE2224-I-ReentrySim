@@ -381,11 +381,14 @@ def main(tle_data_n3Xt):
     except:
         plt.style.use('ggplot')
     
-    actual_periapsis, actual_apoapsis, actial_hours = TLE_extract("TLEs_Satellites/"+satname+"_TLE")
+    actual_periapsis, actual_apoapsis, _ , actual_dates = TLE_extract("TLEs_Satellites/"+satname+"_TLE")
 
     fig, ax1 = plt.subplots(figsize=(12, 6))
     ax1.plot(resampled_dates, resampled_data['periapsis'], 'b-', label='Periapsis Altitude', linewidth=1)
     ax1.plot(resampled_dates, resampled_data['apoapsis'], 'r-', label='Apoapsis Altitude', linewidth=1)
+    ax1.plot(actual_dates, actual_periapsis, label='Actual Periapsis Altitude', linewidth=1)
+    ax1.plot(actual_dates, actual_apoapsis, label='Actual Apoapsis Altitude', linewidth=1)
+    
     ax1.plot()
     ax1.set_xlabel('Date', fontsize=12)
     ax1.set_ylabel('Altitude [km]', fontsize=12)
