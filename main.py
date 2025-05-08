@@ -375,11 +375,18 @@ def main(tle_data_n3Xt):
     final_date = start_date + timedelta(seconds=time_seconds[-1])
 
     # Plotting
-    plt.style.use('ggplot')
+    # Note: Using 'seaborn-v0_8' or 'ggplot' as a fallback. Install seaborn (`pip install seaborn`) for full Seaborn styles.
+    try:
+        plt.style.use('seaborn-v0_8')
+    except:
+        plt.style.use('ggplot')
+    
+    actual_periapsis, actual_apoapsis, actial_hours = TLE_extract("TLEs_Satellites/"+satname+"_TLE")
 
     fig, ax1 = plt.subplots(figsize=(12, 6))
     ax1.plot(resampled_dates, resampled_data['periapsis'], 'b-', label='Periapsis Altitude', linewidth=1)
     ax1.plot(resampled_dates, resampled_data['apoapsis'], 'r-', label='Apoapsis Altitude', linewidth=1)
+    ax1.plot()
     ax1.set_xlabel('Date', fontsize=12)
     ax1.set_ylabel('Altitude [km]', fontsize=12)
     ax1.set_title(f'Apoapsis and Periapsis Altitudes of {satname} (Atm: {atm_model})', fontsize=14, pad=20)
