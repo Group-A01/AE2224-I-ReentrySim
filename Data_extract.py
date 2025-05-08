@@ -67,7 +67,7 @@ def TLE_extract(path):
 
 if __name__ == "__main__":
     import matplotlib.pyplot as plt
-    per, ap, time = TLE_extract('TLEs Satellites\Delfi-C3_TLE')
+    per, ap, time = TLE_extract('TLEs Satellites\Delfi-n3Xt_TLE')
     plt.plot(time, per, label='Periapsis')
     plt.plot(time, ap, label='Apoapsis')
     plt.xlabel('Hours since 2021-11-12')
