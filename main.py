@@ -115,10 +115,10 @@ def main(override = False, sat_choice='', atm_choice='', duration_choice='', ter
             print("Exiting program.")
             return
         if sat_choice in ['1', '2', '3']:
-            tle_data_n3Xt=('1 39428U 13066N   13326.98735140  .00000434  00000-0  85570-4 0  9994',
-                           '2 39428 097.7885 039.5438 0131608 184.9556 175.0377 14.61934043   196')
+            tle_data_n3Xt=('1 39428U 13066N   25127.74836985  .00006212  00000-0  63855-3 0  9990',
+                        '2 39428  97.8359  45.7788 0087348 108.1758 252.8993 14.87866514614197')
             if sat_choice == '3':
-                tle_data_n3Xt = fetch_tle_data()
+                # tle_data_n3Xt = fetch_tle_data() #fetch from online
                 print(f'The TLE of n3Xt is {tle_data_n3Xt}')
             break
         print("Invalid choice. Please enter 1, 2, 3, or 'q'.")
@@ -206,6 +206,7 @@ def main(override = False, sat_choice='', atm_choice='', duration_choice='', ter
                 "2 39428 097.7885 039.5438 0131608 184.9556 175.0377 14.61934043   196"
             ),
             "start_initial": "2013-11-22",
+            # "start_initial": "2025-05-09",
             "tle_last2": tle_data_n3Xt,
             "start_last2": str(convert_to_date(tle_data_n3Xt[0][17:32]))[:10]
         }
@@ -413,7 +414,7 @@ def main(override = False, sat_choice='', atm_choice='', duration_choice='', ter
     ax1.set_title(f'Apoapsis and Periapsis Altitudes of {satname} (Atm: {atm_model})', fontsize=14, pad=20)
     ax1.grid(True, linestyle='--', alpha=0.7)
     ax1.legend(loc='upper left', fontsize=10)
-    ax1.set_xlim([min(resampled_dates), max(resampled_dates)])
+    ax1.set_xlim([min(min(actual_dates), min(resampled_dates)), max(max(resampled_dates), max(actual_dates))])
     ax1.set_ylim([min(resampled_data['periapsis'].min(), resampled_data['apoapsis'].min()) * 0.95,
                   max(resampled_data['periapsis'].max(), resampled_data['apoapsis'].max()) * 1.05])
     plt.tight_layout()
@@ -451,4 +452,4 @@ def main(override = False, sat_choice='', atm_choice='', duration_choice='', ter
     print(f"Final simulation date: {resampled_dates[-1]}\n-----------------------\n")
 
 if __name__ == "__main__":
-    main(True, '1', '1', '2', '2', '2021-11-15')
+    main(True, '3', '1', '1', '2', '2025-07-15')
