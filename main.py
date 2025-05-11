@@ -160,17 +160,17 @@ def main(tle_data_n3Xt):
         "Delfi-C3": {
             "mass": 2.2,
             "reference_area": (4 * 0.3 * 0.1 + 2 * 0.1 * 0.1) / 4,
-            "drag_coefficient": 1.2,
+            "drag_coefficient": 2.46,
             "tle_initial": (
                 "1 32789U 07021G   08119.60740078 -.00000054  00000-0  00000+0 0  9999",
                 "2 32789 098.0082 179.6267 0015321 307.2977 051.0656 14.81417433    68"
             ),
             "start_initial": "2008-04-28",
             "tle_last2": (
-                "1 32789U 08021G   21317.57983842  .00002962  00000-0  18660-3 0  9993",
-                "2 32789  97.3635 347.1658 0011139 357.7651   2.3527 15.09855247739326"
+                "1 32789U 08021G   21316.65200823  .00002906  00000-0  18317-3 0  9999",
+                "2 32789  97.3635 346.2745 0011231   1.1170 359.0083 15.09850051739183"
             ),
-            "start_last2": "2021-11-13"
+            "start_last2": "2021-11-12"
         },
         "Delfi-PQ": {
             "mass": 0.6,
@@ -190,7 +190,7 @@ def main(tle_data_n3Xt):
         "Delfi-n3Xt": {
             "mass": 2.8,
             "reference_area": (4 * 0.35 * 0.1 + 2 * 0.1 * 0.1) / 4,
-            "drag_coefficient": 1.2,
+            "drag_coefficient": 2.46,
             "tle_initial": (
                 "1 39428U 13066N   13326.98735140  .00000434  00000-0  85570-4 0  9994",
                 "2 39428 097.7885 039.5438 0131608 184.9556 175.0377 14.61934043   196"
@@ -383,7 +383,8 @@ def main(tle_data_n3Xt):
     except:
         plt.style.use('ggplot')
     
-    actual_periapsis, actual_apoapsis, _ , actual_dates = TLE_extract("TLEs_Satellites/"+satname+"_TLE")
+    # Call TLE_extract and capture tle_list
+    actual_periapsis, actual_apoapsis, _, actual_dates = TLE_extract("TLEs_Satellites/"+satname+"_TLE")
 
     fig, ax1 = plt.subplots(figsize=(12, 6))
     ax1.plot(resampled_dates, resampled_data['periapsis'], 'b-', label='Periapsis Altitude', linewidth=1)
