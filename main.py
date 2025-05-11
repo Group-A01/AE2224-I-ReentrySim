@@ -10,7 +10,7 @@ from tudatpy.util import result2array
 import pymsis
 from alive_progress import alive_bar
 from Data_extract import TLE_extract, convert_to_date
-import os
+import os, time
 import urllib.request
 
 def fetch_tle_data():
@@ -95,7 +95,7 @@ def setup_accelerations(satname):
     }
     return accelerations_settings
 
-def main(tle_data_n3Xt):
+def main(override = False, sat_choice='', atm_choice='', duration_choice='', term_choice='', end_date_str=''):
     """Main function to run the satellite orbit simulation."""
     # Create output directories
     satellites = ["Delfi-C3", "Delfi-PQ", "Delfi-n3Xt"]
@@ -104,38 +104,44 @@ def main(tle_data_n3Xt):
 
     # Load SPICE kernels
     spice.load_standard_kernels()
-
+    
     # User input for satellite
-    print("Available Satellites:")
-    print("1. Delfi-C3\n2. Delfi-PQ\n3. Delfi-n3Xt")
     while True:
-        sat_choice = input("Enter your choice (1-3, or 'q' to quit): ").strip().lower()
+        if not override:
+            print("Available Satellites:")
+            print("1. Delfi-C3\n2. Delfi-PQ\n3. Delfi-n3Xt")
+            sat_choice = input("Enter your choice (1-3, or 'q' to quit): ").strip().lower()
         if sat_choice == 'q':
             print("Exiting program.")
             return
         if sat_choice in ['1', '2', '3']:
-            satname = satellites[int(sat_choice) - 1]
+            tle_data_n3Xt=('1 39428U 13066N   25127.74836985  .00006212  00000-0  63855-3 0  9990',
+                        '2 39428  97.8359  45.7788 0087348 108.1758 252.8993 14.87866514614197')
+            if sat_choice == '3':
+                # tle_data_n3Xt = fetch_tle_data() #fetch from online
+                print(f'The TLE of n3Xt is {tle_data_n3Xt}')
             break
         print("Invalid choice. Please enter 1, 2, 3, or 'q'.")
 
     # User input for atmospheric model
-    print("\nAvailable Atmospheric Models:")
-    print("1. MSIS (NRLMSISE-2.0 via pymsis)\n2. NRLMSISE-00\n3. Exponential\n4. US76")
     while True:
-        atm_choice = input("Enter your choice (1-4, or 'q' to quit): ").strip().lower()
+        if not override:
+            print("\nAvailable Atmospheric Models:")
+            print("1. MSIS (NRLMSISE-2.0 via pymsis)\n2. NRLMSISE-00\n3. Exponential\n4. US76")
+            atm_choice = input("Enter your choice (1-4, or 'q' to quit): ").strip().lower()
         if atm_choice == 'q':
             print("Exiting program.")
             return
         if atm_choice in ['1', '2', '3', '4']:
-            atm_model = ["MSIS", "NRLMSISE-00", "Exponential", "u76"][int(atm_choice) - 1]
             break
         print("Invalid choice. Please enter 1, 2, 3, 4, or 'q'.")
 
     # User input for simulation duration
-    print("\nSimulation Duration Options:")
-    print("1. Full simulation\n2. Last 2 years of the satellite's operation")
     while True:
-        duration_choice = input("Enter your choice (1-2, or 'q' to quit): ").strip().lower()
+        if not override:
+            print("\nSimulation Duration Options:")
+            print("1. Full simulation\n2. Last 2 years of the satellite's operation")
+            duration_choice = input("Enter your choice (1-2, or 'q' to quit): ").strip().lower()
         if duration_choice == 'q':
             print("Exiting program.")
             return
@@ -144,23 +150,27 @@ def main(tle_data_n3Xt):
         print("Invalid choice. Please enter 1, 2, or 'q'.")
 
     # User input for termination condition
-    print(f"\nSimulation Termination Options for {satname}:")
-    print("1. Until altitude reaches 200 km\n2. Specify an end date")
     while True:
-        term_choice = input("Enter your choice (1-2, or 'q' to quit): ").strip().lower()
+        if not override:
+            print(f"\nSimulation Termination Options:")
+            print("1. Until altitude reaches 200 km\n2. Specify an end date")
+            term_choice = input("Enter your choice (1-2, or 'q' to quit): ").strip().lower()
         if term_choice == 'q':
             print("Exiting program.")
             return
         if term_choice in ['1', '2']:
             break
         print("Invalid choice. Please enter 1, 2, or 'q'.")
-
+    
+    satname = satellites[int(sat_choice) - 1]
+    atm_model = ["MSIS", "NRLMSISE-00", "Exponential", "u76"][int(atm_choice) - 1]
+    
     # Satellite parameters
     satellite_params = {
         "Delfi-C3": {
             "mass": 2.2,
-            "reference_area": (4 * 0.3 * 0.1 + 2 * 0.1 * 0.1) / 4,
-            "drag_coefficient": 2.46,
+            "reference_area": 1.462067e-01,
+            "drag_coefficient": 2.459680e+00,
             "tle_initial": (
                 "1 32789U 07021G   08119.60740078 -.00000054  00000-0  00000+0 0  9999",
                 "2 32789 098.0082 179.6267 0015321 307.2977 051.0656 14.81417433    68"
@@ -174,8 +184,8 @@ def main(tle_data_n3Xt):
         },
         "Delfi-PQ": {
             "mass": 0.6,
-            "reference_area": (4 * 0.1 * 0.1 + 2 * 0.1 * 0.1) / 4,
-            "drag_coefficient": 1.2,
+            "reference_area": 1.462067e-01,
+            "drag_coefficient": 2.459680e+00,
             "tle_initial": (
                 "1 51074U 22002CU  22018.63976129  .00005793  00000-0  31877-3 0  9992",
                 "2 51074  97.5269  88.2628 0013258 250.6199 109.3600 15.14370988   760"
@@ -189,13 +199,14 @@ def main(tle_data_n3Xt):
         },
         "Delfi-n3Xt": {
             "mass": 2.8,
-            "reference_area": (4 * 0.35 * 0.1 + 2 * 0.1 * 0.1) / 4,
-            "drag_coefficient": 2.46,
+            "reference_area": 1.462067e-01,
+            "drag_coefficient": 2.459680e+00,
             "tle_initial": (
                 "1 39428U 13066N   13326.98735140  .00000434  00000-0  85570-4 0  9994",
                 "2 39428 097.7885 039.5438 0131608 184.9556 175.0377 14.61934043   196"
             ),
             "start_initial": "2013-11-22",
+            # "start_initial": "2025-05-09",
             "tle_last2": tle_data_n3Xt,
             "start_last2": str(convert_to_date(tle_data_n3Xt[0][17:32]))[:10]
         }
@@ -209,10 +220,12 @@ def main(tle_data_n3Xt):
     # Set simulation start date and TLE
     try:
         if duration_choice == "1":
+            period = 'full'
             start_date = datetime.strptime(params["start_initial"], "%Y-%m-%d")
             tle_data = params["tle_initial"]
             print(f"Selected: Full simulation for {satname} starting from {params['start_initial']}")
         else:
+            period = 'last2years'
             start_date = datetime.strptime(params["start_last2"], "%Y-%m-%d")
             tle_data = params["tle_last2"]
             print(f"Selected: Last 2 years for {satname} starting from {params['start_last2']}")
@@ -247,7 +260,8 @@ def main(tle_data_n3Xt):
     elif duration_choice == "2" and term_choice == "2":
         while True:
             try:
-                end_date_str = input("Enter end date for last 2 years simulation (YYYY-MM-DD): ").strip()
+                if not override:
+                    end_date_str = input("Enter end date for last 2 years simulation (YYYY-MM-DD): ").strip()
                 end_date = datetime.strptime(end_date_str, "%Y-%m-%d")
                 simulation_end_epoch = DateTime(end_date.year, end_date.month, end_date.day).epoch()
                 if simulation_end_epoch <= simulation_start_epoch:
@@ -267,7 +281,8 @@ def main(tle_data_n3Xt):
     else:
         while True:
             try:
-                end_date_str = input("Enter end date (YYYY-MM-DD): ").strip()
+                if not override:
+                    end_date_str = input("Enter end date (YYYY-MM-DD): ").strip()
                 end_date = datetime.strptime(end_date_str, "%Y-%m-%d")
                 simulation_end_epoch = DateTime(end_date.year, end_date.month, end_date.day).epoch()
                 if simulation_end_epoch <= simulation_start_epoch:
@@ -332,13 +347,15 @@ def main(tle_data_n3Xt):
     # Run simulation
     try:
         print("Starting numerical integration...")
+        tik = time.time()
         with alive_bar(title="Numerical integration:") as bar:
             dynamics_simulator = numerical_simulation.create_dynamics_simulator(bodies, propagator_settings)
             bar()
     except Exception as e:
         print(f"Simulation failed: {e}")
         return
-
+    tok = time.time()
+    print("Elapsed time: {0}s".format(timedelta(seconds=int(tok-tik))))
     # Process results
     states = dynamics_simulator.propagation_results.state_history
     states_array = result2array(states)
@@ -398,11 +415,11 @@ def main(tle_data_n3Xt):
     ax1.set_title(f'Apoapsis and Periapsis Altitudes of {satname} (Atm: {atm_model})', fontsize=14, pad=20)
     ax1.grid(True, linestyle='--', alpha=0.7)
     ax1.legend(loc='upper left', fontsize=10)
-    ax1.set_xlim([min(resampled_dates), max(resampled_dates)])
+    ax1.set_xlim([min(min(actual_dates), min(resampled_dates)), max(max(resampled_dates), max(actual_dates))])
     ax1.set_ylim([min(resampled_data['periapsis'].min(), resampled_data['apoapsis'].min()) * 0.95,
                   max(resampled_data['periapsis'].max(), resampled_data['apoapsis'].max()) * 1.05])
     plt.tight_layout()
-    output_path = f"results/{satname}/{satname}_altitude_{atm_model.replace(' ', '_')}.png"
+    output_path = f"results/{satname}/{satname}_altitude_{atm_model.replace(' ', '_')}_{period}.png"
     plt.savefig(output_path)
     plt.close()
 
@@ -416,7 +433,7 @@ def main(tle_data_n3Xt):
     ax2.set_yscale('log')
     ax2.grid(True, linestyle='--', alpha=0.7)
     plt.tight_layout()
-    output_path = f"results/{satname}/{satname}_drag_acceleration_{atm_model.replace(' ', '_')}.png"
+    output_path = f"results/{satname}/{satname}_drag_acceleration_{atm_model.replace(' ', '_')}_{period}.png"
     plt.savefig(output_path)
     plt.close()
 
@@ -424,7 +441,7 @@ def main(tle_data_n3Xt):
     data_resampled = np.vstack([resampled_time_hours, resampled_data['apoapsis'], resampled_data['periapsis'],
                                 resampled_data['acc_aero_earth']]).T
     header="Time (Hours), Apoapsis, Periapsis, Acceleration Norm Aero Earth"
-    output_path = f"results/{satname}/{satname}_{atm_model.replace(' ', '_')}.csv"
+    output_path = f"results/{satname}/{satname}_{atm_model.replace(' ', '_')}_{period}.csv"
     try:
         print(f"Writing to file: {output_path}...")
         np.savetxt(output_path, data_resampled, header=header, delimiter=',', fmt='%.5e')
@@ -433,9 +450,7 @@ def main(tle_data_n3Xt):
         print(f"Error saving CSV: {e}")
 
     print(f"Final simulation time: {time_hours[-1]:.2f} hours")
-    print(f"Final simulation date: {final_date.strftime('%Y-%m-%d')}")
+    print(f"Final simulation date: {resampled_dates[-1]}\n-----------------------\n")
 
 if __name__ == "__main__":
-    tle_data_n3Xt = fetch_tle_data()
-    print(f'The TLE of n3Xt is {tle_data_n3Xt}')
-    main(tle_data_n3Xt)
+    main(True, '3', '1', '1', '2', '2025-07-15')
