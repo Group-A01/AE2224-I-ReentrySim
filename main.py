@@ -169,8 +169,8 @@ def main(override = False, sat_choice='', atm_choice='', duration_choice='', ter
     satellite_params = {
         "Delfi-C3": {
             "mass": 2.2,
-            "reference_area": 1.462067e-01,
-            "drag_coefficient": 2.459680e+00,
+            "reference_area": 0.06335596,
+            "drag_coefficient": 3.884171,
             "tle_initial": (
                 "1 32789U 07021G   08119.60740078 -.00000054  00000-0  00000+0 0  9999",
                 "2 32789 098.0082 179.6267 0015321 307.2977 051.0656 14.81417433    68"
@@ -184,8 +184,8 @@ def main(override = False, sat_choice='', atm_choice='', duration_choice='', ter
         },
         "Delfi-PQ": {
             "mass": 0.6,
-            "reference_area": 1.462067e-01,
-            "drag_coefficient": 2.459680e+00,
+            "reference_area": 0.02888152,
+            "drag_coefficient": 3.295226,
             "tle_initial": (
                 "1 51074U 22002CU  22018.63976129  .00005793  00000-0  31877-3 0  9992",
                 "2 51074  97.5269  88.2628 0013258 250.6199 109.3600 15.14370988   760"
@@ -199,7 +199,7 @@ def main(override = False, sat_choice='', atm_choice='', duration_choice='', ter
         },
         "Delfi-n3Xt": {
             "mass": 2.8,
-            "reference_area": 1.462067e-01,
+            "reference_area": 0.10421905,
             "drag_coefficient": 2.459680e+00,
             "tle_initial": (
                 "1 39428U 13066N   13326.98735140  .00000434  00000-0  85570-4 0  9994",
@@ -453,4 +453,4 @@ def main(override = False, sat_choice='', atm_choice='', duration_choice='', ter
     print(f"Final simulation date: {resampled_dates[-1]}\n-----------------------\n")
 
 if __name__ == "__main__":
-    main(True, '3', '1', '1', '2', '2025-07-15')
+    main(False, '3', '1', '1', '2', '2025-07-15')
