@@ -6,8 +6,8 @@
 #SBATCH --time=03:00:00
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=1
-#SBATCH --mem-per-cpu=4GB
+#SBATCH --mem-per-cpu=2GB
 
 module load miniconda3
 conda activate tudat-space
-python routines/c3.py
+python routine-c3.py
