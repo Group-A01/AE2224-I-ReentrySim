@@ -1,3 +1,5 @@
+
+##THIS NEEDS TO BE MOVED OUT TO THE MAIN DIRECTORY TO WORK
 import numpy as np
 import pandas as pd
 from matplotlib import pyplot as plt
@@ -13,7 +15,7 @@ from tudatpy import constants
 from tudatpy.util import result2array
 from tudatpy.astro.time_conversion import DateTime
 import time
-import pymsis
+import aaapymsis
 import urllib.request
 from alive_progress import alive_bar
 import os
@@ -47,8 +49,8 @@ def density_f(h, lon, lat, time):
     start_date = np.datetime64("2000-01-01T00:00")
     timedate = start_date + np.timedelta64(int(time), 's')
     # Use h in kilometers (pymsis expects km)
-    data = pymsis.calculate(timedate, lon, lat, h/1000, geomagnetic_activity=-1, version=2.1)
-    density = data[0, pymsis.Variable.MASS_DENSITY]
+    data = aaapymsis.calculate(timedate, lon, lat, h/1000, geomagnetic_activity=-1, version=2.1)
+    density = data[0, aaapymsis.Variable.MASS_DENSITY]
     return density
 
 body_settings.get("Earth").atmosphere_settings = environment_setup.atmosphere.custom_four_dimensional_constant_temperature(

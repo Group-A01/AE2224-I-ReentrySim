@@ -39,4 +39,4 @@ ax.set_ylim(0, 1000)
 ax.set_xlabel("Change from MSIS-00 to MSIS2 (%)", fontsize = 18)
 ax.set_ylabel("Altitude (km)", fontsize = 18)
 
-plt.savefig('Altitude_density_difference.png')
+plt.savefig('scripts/script_results/Altitude_density_difference.png')
