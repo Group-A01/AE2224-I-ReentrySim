@@ -169,7 +169,7 @@ def main(override = False, sat_choice='', atm_choice='', duration_choice='', ter
     satellite_params = {
         "Delfi-C3": {
             "mass": 2.2,
-            "reference_area": 0.06335596,
+            "reference_area": 0.07139556,
             "drag_coefficient": 3.884171,
             "tle_initial": (
                 "1 32789U 07021G   08119.60740078 -.00000054  00000-0  00000+0 0  9999",
@@ -184,7 +184,7 @@ def main(override = False, sat_choice='', atm_choice='', duration_choice='', ter
         },
         "Delfi-PQ": {
             "mass": 0.6,
-            "reference_area": 0.02888152,
+            "reference_area": 0.03946549,
             "drag_coefficient": 3.295226,
             "tle_initial": (
                 "1 51074U 22002CU  22018.63976129  .00005793  00000-0  31877-3 0  9992",
@@ -199,7 +199,7 @@ def main(override = False, sat_choice='', atm_choice='', duration_choice='', ter
         },
         "Delfi-n3Xt": {
             "mass": 2.8,
-            "reference_area": 0.10421905,
+            "reference_area": 0.08944717,
             "drag_coefficient": 2.459680e+00,
             "tle_initial": (
                 "1 39428U 13066N   13326.98735140  .00000434  00000-0  85570-4 0  9994",
