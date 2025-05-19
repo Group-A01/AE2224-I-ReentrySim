@@ -6,7 +6,7 @@
 #SBATCH --time=03:00:00
 #SBATCH --ntasks=1
 #SBATCH --cpus-per-task=1
-#SBATCH --mem-per-cpu=2GB
+#SBATCH --mem-per-cpu=3GB
 
 module load miniconda3
 conda activate tudat-space

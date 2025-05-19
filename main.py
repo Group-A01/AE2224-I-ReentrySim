@@ -7,9 +7,9 @@ from tudatpy import numerical_simulation
 from tudatpy.numerical_simulation import environment, environment_setup, propagation_setup
 from tudatpy.astro.time_conversion import DateTime
 from tudatpy.util import result2array
-import pymsis
+import aaapymsis
 from alive_progress import alive_bar
-from Data_extract import TLE_extract, convert_to_date
+from scripts.Data_extract import TLE_extract, convert_to_date
 import os, time
 import urllib.request
 
@@ -45,8 +45,8 @@ def setup_body_settings(satname, reference_area, drag_coefficient, radiation_pre
             # Time is seconds since simulation start
             start_date = np.datetime64("2000-01-01T00:00")
             timedate = start_date + np.timedelta64(int(time), 's')
-            data = pymsis.calculate(timedate, lon, lat, h / 1000, geomagnetic_activity=-1, version=2.0)
-            density = data[0, pymsis.Variable.MASS_DENSITY]
+            data = aaapymsis.calculate(timedate, lon, lat, h / 1000, geomagnetic_activity=-1, version=2.0)
+            density = data[0, aaapymsis.Variable.MASS_DENSITY]
             return density
 
         body_settings.get("Earth").atmosphere_settings = environment_setup.atmosphere.custom_four_dimensional_constant_temperature(
@@ -395,19 +395,19 @@ def main(override = False, sat_choice='', atm_choice='', duration_choice='', ter
 
     # Plotting
     # Note: Using 'seaborn-v0_8' or 'ggplot' as a fallback. Install seaborn (`pip install seaborn`) for full Seaborn styles.
-    try:
-        plt.style.use('seaborn-v0_8')
-    except:
-        plt.style.use('ggplot')
+    # try:
+    #     plt.style.use('seaborn-v0_8')
+    # except:
+    #     plt.style.use('ggplot')
     
     # Call TLE_extract and capture tle_list
     actual_periapsis, actual_apoapsis, _, actual_dates = TLE_extract("TLEs_Satellites/"+satname+"_TLE")
 
     fig, ax1 = plt.subplots(figsize=(12, 6))
-    ax1.plot(resampled_dates, resampled_data['periapsis'], 'b-', label='Periapsis Altitude', linewidth=1)
-    ax1.plot(resampled_dates, resampled_data['apoapsis'], 'r-', label='Apoapsis Altitude', linewidth=1)
-    ax1.plot(actual_dates, actual_periapsis, label='Actual Periapsis Altitude', linewidth=1)
-    ax1.plot(actual_dates, actual_apoapsis, label='Actual Apoapsis Altitude', linewidth=1)
+    ax1.plot(resampled_dates, resampled_data['periapsis'], label='Periapsis Altitude', linewidth=1)
+    ax1.plot(resampled_dates, resampled_data['apoapsis'], label='Apoapsis Altitude', linewidth=1)
+    # ax1.plot(actual_dates, actual_periapsis, label='Actual Periapsis Altitude', linewidth=1)
+    # ax1.plot(actual_dates, actual_apoapsis, label='Actual Apoapsis Altitude', linewidth=1)
     
     ax1.plot()
     ax1.set_xlabel('Date', fontsize=12)
@@ -415,7 +415,7 @@ def main(override = False, sat_choice='', atm_choice='', duration_choice='', ter
     ax1.set_title(f'Apoapsis and Periapsis Altitudes of {satname} (Atm: {atm_model})', fontsize=14, pad=20)
     ax1.grid(True, linestyle='--', alpha=0.7)
     ax1.legend(loc='upper left', fontsize=10)
-    ax1.set_xlim([min(min(actual_dates), min(resampled_dates)), max(max(resampled_dates), max(actual_dates))])
+    # ax1.set_xlim([min(min(actual_dates), min(resampled_dates)), max(max(resampled_dates), max(actual_dates))])
     ax1.set_ylim([min(resampled_data['periapsis'].min(), resampled_data['apoapsis'].min()) * 0.95,
                   max(resampled_data['periapsis'].max(), resampled_data['apoapsis'].max()) * 1.05])
     plt.tight_layout()
@@ -453,4 +453,4 @@ def main(override = False, sat_choice='', atm_choice='', duration_choice='', ter
     print(f"Final simulation date: {resampled_dates[-1]}\n-----------------------\n")
 
 if __name__ == "__main__":
-    main(False, '3', '1', '1', '2', '2025-07-15')
+    main(False, '3', '1', '2', '2', '2025-07-15')
