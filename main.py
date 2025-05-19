@@ -170,7 +170,7 @@ def main(override = False, sat_choice='', atm_choice='', duration_choice='', ter
         "Delfi-C3": {
             "mass": 2.2,
             "reference_area": 0.07139556,
-            "drag_coefficient": 3.884171,
+            "drag_coefficient": 2.8,
             "tle_initial": (
                 "1 32789U 07021G   08119.60740078 -.00000054  00000-0  00000+0 0  9999",
                 "2 32789 098.0082 179.6267 0015321 307.2977 051.0656 14.81417433    68"
