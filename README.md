@@ -1,4 +1,5 @@
 ## Prerequisites
+For main.py:
 
 Default Tudat-space conda environment,
 
