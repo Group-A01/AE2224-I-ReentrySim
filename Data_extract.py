@@ -77,7 +77,7 @@ def convert_to_date(input):
 if __name__ == "__main__":
     import matplotlib.pyplot as plt
 
-    per, ap, time, datetime = TLE_extract('TLEs_Satellites/Delfi-C3_TLE')
+    per, ap, time, datetime = TLE_extract('TLEs_Satellites/Delfi-n3Xt_TLE')
     plt.plot(datetime, per, label='Periapsis')
     plt.plot(datetime, ap, label='Apoapsis')
     plt.xlabel('Hours since 2021-11-12')

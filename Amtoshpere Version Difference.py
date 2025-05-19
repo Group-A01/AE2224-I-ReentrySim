@@ -29,16 +29,14 @@ diff_midnight = np.squeeze(diff_midnight)
 diff_noon = np.squeeze(diff_noon)
 
 _, ax = plt.subplots()
-(line,) = ax.plot(diff_midnight[:,  pymsis.Variable.MASS_DENSITY], alts, linestyle="--")
-ax.plot(diff_noon[:,  pymsis.Variable.MASS_DENSITY], alts, c=line.get_color(), label= pymsis.Variable.MASS_DENSITY.name)
+(line,) = ax.plot(diff_midnight[:,  pymsis.Variable.MASS_DENSITY], alts, linestyle="--", label = 'Mass Density at midnight')
+ax.plot(diff_noon[:,  pymsis.Variable.MASS_DENSITY], alts, c=line.get_color(), label= 'Mass Density at noon')
 
-ax.legend(
-    loc="upper center", bbox_to_anchor=(0.5, 1.15), fancybox=True, shadow=True, ncol=4
-)
-ax.set_title(f"Longitude: {lon}, Latitude: {lat}")
+ax.legend()
+
 ax.set_xlim(-50, 50)
 ax.set_ylim(0, 1000)
-ax.set_xlabel("Change from MSIS-00 to MSIS2 (%)")
-ax.set_ylabel("Altitude (km)")
+ax.set_xlabel("Change from MSIS-00 to MSIS2 (%)", fontsize = 18)
+ax.set_ylabel("Altitude (km)", fontsize = 18)
 
-plt.show()
+plt.savefig('Altitude_density_difference.png')

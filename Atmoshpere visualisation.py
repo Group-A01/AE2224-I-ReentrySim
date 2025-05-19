@@ -15,33 +15,44 @@ aps = [[ap] * 7]
 # Calculate MSIS for version 0
 output_v0 = pymsis.calculate(date, lons, lats, alt, geomagnetic_activity=-1, version=0)
 output_v0 = np.squeeze(output_v0)
-density_v0 = output_v0[:, :, pymsis.Variable.MASS_DENSITY]
 
 # Calculate MSIS for version 2.1
 output_v21 = pymsis.calculate(date, lons, lats, alt, geomagnetic_activity=-1, version=2.1)
 output_v21 = np.squeeze(output_v21)
-density_v21 = output_v21[:, :, pymsis.Variable.MASS_DENSITY]
-
-# Calculate percentage difference: ((v2.1 - v0) / v0) * 100
-percentage_diff = ((density_v21 - density_v0) / density_v0) * 100
 
 # Create meshgrid for plotting
 xx, yy = np.meshgrid(lons, lats)
 
-# Plot percentage difference
+# Plot for version 0
 fig, ax = plt.subplots()
-mesh_err = ax.pcolormesh(xx, yy, percentage_diff.T, shading="auto", cmap="RdBu")
-plt.colorbar(mesh_err, label="Percentage difference (%)")
-ax.set_title(f"Percentage difference in air density at {alt} km (MSIS v2.1 vs v0)")
-ax.set_xlabel("Longitude (deg)")
-ax.set_ylabel("Latitude (deg)")
-plt.savefig("msis_percentage_diff.png")
+mesh_v0 = ax.pcolormesh(xx, yy, output_v0[:, :, pymsis.Variable.MASS_DENSITY].T, shading="auto")
+cbar_v0 = plt.colorbar(mesh_v0)
+cbar_v0.set_label(label="Mass density (kg/m$^3$)", fontsize = 18)
+plt.tick_params(axis='both', which='major', labelsize=12)
+ax.set_xlabel("Longitude (deg)", fontsize = 18)
+ax.set_ylabel("Latitude (deg)", fontsize = 18)
+plt.savefig("msis_v0.png")
 plt.close()
 
-# Calculate summary statistics
-mean_percentage_diff = np.mean(percentage_diff)
-max_percentage_diff = np.max(percentage_diff)
-min_percentage_diff = np.min(percentage_diff)
-print(f"Mean percentage difference: {mean_percentage_diff:.2f}%")
-print(f"Max percentage difference: {max_percentage_diff:.2f}%")
-print(f"Min percentage difference: {min_percentage_diff:.2f}%")
+# Plot for version 2.1
+fig, ax = plt.subplots()
+mesh_v21 = ax.pcolormesh(xx, yy, output_v21[:, :, pymsis.Variable.MASS_DENSITY].T, shading="auto")
+cbar_v21 = plt.colorbar(mesh_v21)
+cbar_v21.set_label(label="Mass density (kg/m$^3$)", fontsize = 18)
+plt.tick_params(axis='both', which='major', labelsize=12)
+ax.set_xlabel("Longitude (deg)", fontsize = 18)
+ax.set_ylabel("Latitude (deg)", fontsize = 18)
+plt.savefig("msis_v21.png")
+plt.close()
+
+# Calculate and plot the error (difference) between versions
+error = output_v21[:, :, pymsis.Variable.MASS_DENSITY] - output_v0[:, :, pymsis.Variable.MASS_DENSITY]
+fig, ax = plt.subplots()
+mesh_err = ax.pcolormesh(xx, yy, error.T, shading="auto", cmap="RdBu")
+cbar_err = plt.colorbar(mesh_err)
+cbar_err.set_label(label="Mass density difference (kg/m$^3$)", fontsize =18)
+plt.tick_params(axis='both', which='major', labelsize=12)
+ax.set_xlabel("Longitude (deg)", fontsize =18)
+ax.set_ylabel("Latitude (deg)", fontsize = 18)
+plt.savefig("msis_error.png")
+plt.close()
