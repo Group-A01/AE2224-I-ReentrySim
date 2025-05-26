@@ -71,18 +71,11 @@ def TLE_extract(path):
 if __name__ == "__main__":
     import matplotlib.pyplot as plt
 
-<<<<<<< HEAD:Data_extract.py
-    per, ap, time, datetime = TLE_extract('TLEs_Satellites/Delfi-n3Xt_TLE')
-    plt.plot(datetime, per, label='Periapsis')
-    plt.plot(datetime, ap, label='Apoapsis')
-    plt.xlabel('Hours since 2021-11-12')
-=======
     df = TLE_extract('TLEs_Satellites/Delfi-n3Xt_TLE')
 
     plt.plot(df['Datetime'], df['Periapsis_altitude_km'], label='Periapsis')
     plt.plot(df['Datetime'], df['Apoapsis_altitude_km'], label='Apoapsis')
     plt.xlabel('Date')
->>>>>>> 72a5089bfee05f860abbeba367b6509a687270c6:scripts/Data_extract.py
     plt.ylabel('Altitude (km)')
     plt.legend()
     plt.grid(True)
