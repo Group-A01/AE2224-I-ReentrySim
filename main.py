@@ -7,7 +7,7 @@ from tudatpy import numerical_simulation
 from tudatpy.numerical_simulation import environment, environment_setup, propagation_setup
 from tudatpy.astro.time_conversion import DateTime
 from tudatpy.util import result2array
-import aaapymsis
+import pymsis
 from alive_progress import alive_bar
 from scripts.Data_extract import TLE_extract, convert_to_date
 import os, time
@@ -45,8 +45,8 @@ def setup_body_settings(satname, reference_area, drag_coefficient, radiation_pre
             # Time is seconds since simulation start
             start_date = np.datetime64("2000-01-01T00:00")
             timedate = start_date + np.timedelta64(int(time), 's')
-            data = aaapymsis.calculate(timedate, lon, lat, h / 1000, geomagnetic_activity=-1, version=2.0)
-            density = data[0, aaapymsis.Variable.MASS_DENSITY]
+            data = pymsis.calculate(timedate, lon, lat, h / 1000, geomagnetic_activity=-1, version=2.0)
+            density = data[0, pymsis.Variable.MASS_DENSITY]
             return density
 
         body_settings.get("Earth").atmosphere_settings = environment_setup.atmosphere.custom_four_dimensional_constant_temperature(
@@ -153,7 +153,7 @@ def main(override = False, sat_choice='', atm_choice='', duration_choice='', ter
     while True:
         if not override:
             print(f"\nSimulation Termination Options:")
-            print("1. Until altitude reaches 200 km\n2. Specify an end date")
+            print("1. Until altitude reaches 100 km\n2. Specify an end date")
             term_choice = input("Enter your choice (1-2, or 'q' to quit): ").strip().lower()
         if term_choice == 'q':
             print("Exiting program.")
@@ -170,7 +170,7 @@ def main(override = False, sat_choice='', atm_choice='', duration_choice='', ter
         "Delfi-C3": {
             "mass": 2.2,
             "reference_area": 0.07139556,
-            "drag_coefficient": 2.8,
+            "drag_coefficient": 2.32,
             "tle_initial": (
                 "1 32789U 07021G   08119.60740078 -.00000054  00000-0  00000+0 0  9999",
                 "2 32789 098.0082 179.6267 0015321 307.2977 051.0656 14.81417433    68"
@@ -185,7 +185,7 @@ def main(override = False, sat_choice='', atm_choice='', duration_choice='', ter
         "Delfi-PQ": {
             "mass": 0.6,
             "reference_area": 0.03946549,
-            "drag_coefficient": 3.295226,
+            "drag_coefficient": 2.53,
             "tle_initial": (
                 "1 51074U 22002CU  22018.63976129  .00005793  00000-0  31877-3 0  9992",
                 "2 51074  97.5269  88.2628 0013258 250.6199 109.3600 15.14370988   760"
@@ -250,13 +250,13 @@ def main(override = False, sat_choice='', atm_choice='', duration_choice='', ter
     # Setup termination condition
     altitude_variable = propagation_setup.dependent_variable.altitude(satname, "Earth")
     altitude_termination = propagation_setup.propagator.dependent_variable_termination(
-        dependent_variable_settings=altitude_variable, limit_value=200.0e3, use_as_lower_limit=True,
+        dependent_variable_settings=altitude_variable, limit_value=100.0e3, use_as_lower_limit=True,
         terminate_exactly_on_final_condition=False
     )
 
     if duration_choice == "2" and term_choice == "1":
         termination_condition = altitude_termination
-        print("Simulating until altitude reaches 200 km...")
+        print("Simulating until altitude reaches 100 km...")
     elif duration_choice == "2" and term_choice == "2":
         while True:
             try:
@@ -271,13 +271,13 @@ def main(override = False, sat_choice='', atm_choice='', duration_choice='', ter
                 termination_condition = propagation_setup.propagator.hybrid_termination(
                     [altitude_termination, time_termination], fulfill_single_condition=True
                 )
-                print(f"Simulating from {start_date.strftime('%Y-%m-%d')} to {end_date_str} or 200 km altitude...")
+                print(f"Simulating from {start_date.strftime('%Y-%m-%d')} to {end_date_str} or 100 km altitude...")
                 break
             except ValueError:
                 print("Invalid date format. Please use YYYY-MM-DD (e.g., 2024-12-31).")
     elif term_choice == "1":
         termination_condition = altitude_termination
-        print("Simulating until altitude reaches 200 km...")
+        print("Simulating until altitude reaches 100 km...")
     else:
         while True:
             try:
@@ -292,7 +292,7 @@ def main(override = False, sat_choice='', atm_choice='', duration_choice='', ter
                 termination_condition = propagation_setup.propagator.hybrid_termination(
                     [altitude_termination, time_termination], fulfill_single_condition=True
                 )
-                print(f"Simulating until {end_date_str} or 200 km altitude...")
+                print(f"Simulating until {end_date_str} or 100 km altitude...")
                 break
             except ValueError:
                 print("Invalid date format. Please use YYYY-MM-DD (e.g., 2024-12-31).")
